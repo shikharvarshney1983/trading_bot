@@ -1,0 +1,419 @@
+{% extends "_base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<style>
+    .kpi-card { text-align: center; }
+    .kpi-card .value { font-size: 1.75rem; font-weight: 600; }
+    .kpi-card .label { font-size: 0.9rem; color: #6c757d; }
+    .text-success { color: #198754 !important; }
+    .text-danger { color: #dc3545 !important; }
+
+    /* Calendar Styles */
+    .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+    .calendar-day { border: 1px solid #ddd; height: 90px; padding: 5px; font-size: 0.8rem; background-color: #fff; }
+    .calendar-day.not-month { background-color: #f8f9fa; }
+    .calendar-day .day-number { font-weight: bold; }
+    .calendar-day .pnl { margin-top: 5px; font-weight: 500; }
+    .day-green { background-color: #d1e7dd; }
+    .day-red { background-color: #f8d7da; }
+</style>
+
+<!-- Main Navigation Tabs -->
+<ul class="nav nav-tabs mb-3" id="dashboardTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary" type="button" role="tab">Dashboard</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="calendar-tab" data-bs-toggle="tab" data-bs-target="#calendar-view" type="button" role="tab">P/L Calendar</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab">Settings & Account</button>
+    </li>
+</ul>
+
+<!-- Tab Content -->
+<div class="tab-content" id="dashboardTabsContent">
+    <!-- Summary / Dashboard Tab -->
+    <div class="tab-pane fade show active" id="summary" role="tabpanel">
+        <!-- KPI Cards -->
+        <div class="row mb-4">
+            <div class="col">
+                <div class="card kpi-card p-2"><div class="value" id="stat-portfolio-value"></div><div class="label">Portfolio Value</div></div>
+            </div>
+            <div class="col">
+                <div class="card kpi-card p-2"><div class="value" id="stat-unrealized-pnl"></div><div class="label">Unrealized P/L</div></div>
+            </div>
+            <div class="col">
+                <div class="card kpi-card p-2"><div class="value" id="stat-realized-pnl"></div><div class="label">Realized P/L</div></div>
+            </div>
+            <div class="col">
+                <div class="card kpi-card p-2"><div class="value" id="stat-win-ratio"></div><div class="label">Win Ratio</div></div>
+            </div>
+            <div class="col">
+                <div class="card kpi-card p-2"><div class="value" id="stat-avg-win"></div><div class="label">Avg. Win</div></div>
+            </div>
+             <div class="col">
+                <div class="card kpi-card p-2"><div class="value" id="stat-avg-loss"></div><div class="label">Avg. Loss</div></div>
+            </div>
+        </div>
+
+        <!-- Portfolio & Transactions -->
+        <div class="row">
+            <div class="col-lg-12 mb-4">
+                <div class="card">
+                    <div class="card-header fw-bold">Current Portfolio</div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Ticker</th><th>Qty</th><th>Avg. Price</th><th>Current Price</th><th>Market Value</th><th>P&L</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="portfolioBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-12">
+                <div class="card">
+                    <div class="card-header fw-bold">Transaction History</div>
+                    <div class="card-body">
+                        <div class="table-responsive" style="max-height: 400px;">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th><th>Ticker</th><th>Action</th><th>Qty</th><th>Price</th><th>Value</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="transactionsBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- P/L Calendar Tab -->
+    <div class="tab-pane fade" id="calendar-view" role="tabpanel">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">P/L Calendar</h5>
+                <div>
+                    <button id="prev-month" class="btn btn-sm btn-outline-secondary">&lt;</button>
+                    <span id="month-year" class="mx-2 fw-bold"></span>
+                    <button id="next-month" class="btn btn-sm btn-outline-secondary">&gt;</button>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="calendar-grid text-center fw-bold mb-2">
+                    <div>Sun</div><div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div>
+                </div>
+                <div id="calendar" class="calendar-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Tab -->
+    <div class="tab-pane fade" id="settings" role="tabpanel">
+        <div class="row">
+            <!-- Left Column: Settings & Actions -->
+            <div class="col-lg-8">
+                <!-- Strategy Settings Card -->
+                <div class="card mb-4">
+                    <div class="card-header fw-bold">Strategy Settings</div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Base Capital (for position sizing)</label>
+                                <input type="number" id="baseCapital" class="form-control">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Brokerage per Trade</label>
+                                <input type="number" id="brokerage" class="form-control">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Max Open Positions</label>
+                                <input type="number" id="maxPositions" class="form-control">
+                            </div>
+                             <div class="col-md-6 mb-3">
+                                <label class="form-label">Execution Interval</label>
+                                <div>
+                                    <input type="radio" name="interval" id="weekly" value="1wk"><label for="weekly" class="ms-1">Weekly</label>
+                                    <input type="radio" name="interval" id="daily" value="1d" class="ms-3"><label for="daily" class="ms-1">Daily</label>
+                                </div>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label class="form-label">Stock List (comma-separated, max 200)</label>
+                                <textarea id="stockList" class="form-control" rows="3"></textarea>
+                            </div>
+                            <div class="col-12 mb-3">
+                                <label class="form-label">Tranche Sizes (JSON format)</label>
+                                <textarea id="tranches" class="form-control" rows="3"></textarea>
+                            </div>
+                        </div>
+                        <button id="saveSettingsBtn" class="btn btn-primary">Save All Settings</button>
+                    </div>
+                </div>
+                <!-- Actions Card -->
+                <div class="card mb-4">
+                    <div class="card-header fw-bold">Execute Strategy</div>
+                    <div class="card-body">
+                        <button id="runStrategyBtn" class="btn btn-success">Run Strategy</button>
+                        <button id="resetBtn" class="btn btn-danger">Reset Portfolio</button>
+                    </div>
+                </div>
+            </div>
+            <!-- Right Column: Account & Logs -->
+            <div class="col-lg-4">
+                <!-- Account Management Card -->
+                <div class="card mb-4">
+                    <div class="card-header fw-bold">My Account</div>
+                    <div class="card-body">
+                        <h5>Balance: <strong id="cashBalance"></strong></h5>
+                        <hr>
+                        <h6>Add Funds</h6>
+                        <div class="input-group mb-3">
+                            <input type="number" id="addFundsAmount" class="form-control" placeholder="Amount">
+                            <button id="addFundsBtn" class="btn btn-outline-success">Add</button>
+                        </div>
+                        <hr>
+                        <h6>Change Password</h6>
+                        <input type="password" id="currentPassword" class="form-control mb-2" placeholder="Current Password">
+                        <input type="password" id="newPassword" class="form-control mb-2" placeholder="New Password">
+                        <button id="changePasswordBtn" class="btn btn-warning w-100">Update Password</button>
+                        <hr>
+                        <!-- Telegram Chat ID Input -->
+                        <h6>Telegram Notifications</h6>
+                        <div class="input-group">
+                            <input type="text" id="telegramChatId" class="form-control" placeholder="Your Telegram Chat ID">
+                            <button id="saveTelegramBtn" class="btn btn-outline-primary">Save</button>
+                        </div>
+                        <small class="form-text text-muted">Get a Chat ID from @userinfobot on Telegram.</small>
+                    </div>
+                </div>
+                <!-- Logs Card -->
+                <div class="card">
+                    <div class="card-header fw-bold">Execution Log</div>
+                    <div class="card-body bg-dark text-white" style="height: 300px; overflow-y: auto;">
+                        <pre id="logContainer">Waiting for actions...</pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const formatCurrency = (val) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(val);
+    const pnlColor = (val) => val >= 0 ? 'text-success' : 'text-danger';
+
+    let calendarDate = new Date();
+    let dailyPnlData = {};
+
+    function updateDashboard(data) {
+        // Stats
+        document.getElementById('stat-portfolio-value').innerHTML = formatCurrency(data.stats.portfolio_value);
+        document.getElementById('stat-unrealized-pnl').innerHTML = `<span class="${pnlColor(data.stats.unrealized_pnl)}">${formatCurrency(data.stats.unrealized_pnl)}</span>`;
+        document.getElementById('stat-realized-pnl').innerHTML = `<span class="${pnlColor(data.stats.realized_pnl)}">${formatCurrency(data.stats.realized_pnl)}</span>`;
+        document.getElementById('stat-win-ratio').innerHTML = `${data.stats.win_ratio.toFixed(2)}%`;
+        document.getElementById('stat-avg-win').innerHTML = `<span class="text-success">${formatCurrency(data.stats.avg_win)}</span>`;
+        document.getElementById('stat-avg-loss').innerHTML = `<span class="text-danger">${formatCurrency(data.stats.avg_loss)}</span>`;
+
+        // Portfolio
+        const portfolioBody = document.getElementById('portfolioBody');
+        portfolioBody.innerHTML = '';
+        if (Object.keys(data.portfolio).length === 0) {
+            portfolioBody.innerHTML = '<tr><td colspan="6" class="text-center">No open positions.</td></tr>';
+        } else {
+            for (const ticker in data.portfolio) {
+                const pos = data.portfolio[ticker];
+                const row = `<tr>
+                    <td>${ticker}</td>
+                    <td>${pos.quantity}</td>
+                    <td>${formatCurrency(pos.avg_price)}</td>
+                    <td>${formatCurrency(pos.current_price || 0)}</td>
+                    <td>${formatCurrency(pos.market_value || 0)}</td>
+                    <td class="${pnlColor(pos.pnl || 0)}">${formatCurrency(pos.pnl || 0)}</td>
+                </tr>`;
+                portfolioBody.innerHTML += row;
+            }
+        }
+
+        // Transactions
+        const transactionsBody = document.getElementById('transactionsBody');
+        transactionsBody.innerHTML = '';
+        if (data.transactions.length === 0) {
+            transactionsBody.innerHTML = '<tr><td colspan="6" class="text-center">No transactions yet.</td></tr>';
+        } else {
+            data.transactions.forEach(tx => {
+                const actionClass = tx.action === 'BUY' || tx.action === 'ADD' ? 'text-success' : 'text-danger';
+                const row = `<tr>
+                    <td>${tx.date}</td>
+                    <td>${tx.ticker}</td>
+                    <td class="${actionClass}">${tx.action}</td>
+                    <td>${tx.quantity}</td>
+                    <td>${formatCurrency(tx.price)}</td>
+                    <td>${formatCurrency(tx.value)}</td>
+                </tr>`;
+                transactionsBody.innerHTML += row;
+            });
+        }
+        
+        // P&L Calendar Data
+        dailyPnlData = data.calendar_pnl;
+        renderCalendar();
+
+        // Populate Settings Tab
+        document.getElementById('cashBalance').textContent = formatCurrency(data.settings.cash_balance);
+        document.getElementById('baseCapital').value = data.settings.base_capital;
+        document.getElementById('brokerage').value = data.settings.brokerage_per_trade;
+        document.getElementById('maxPositions').value = data.settings.max_open_positions;
+        document.getElementById('stockList').value = data.settings.stock_list || '';
+        document.getElementById('tranches').value = JSON.stringify(JSON.parse(data.settings.tranche_sizes || '{}'), null, 2);
+        document.querySelector(`input[name="interval"][value="${data.settings.execution_interval}"]`).checked = true;
+        document.getElementById('telegramChatId').value = data.settings.telegram_chat_id || '';
+    }
+
+    function renderCalendar() {
+        const calendarEl = document.getElementById('calendar');
+        calendarEl.innerHTML = '';
+        const month = calendarDate.getMonth();
+        const year = calendarDate.getFullYear();
+        document.getElementById('month-year').textContent = `${calendarDate.toLocaleString('default', { month: 'long' })} ${year}`;
+
+        const firstDay = new Date(year, month, 1).getDay();
+        const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+        for (let i = 0; i < firstDay; i++) {
+            calendarEl.innerHTML += `<div class="calendar-day not-month"></div>`;
+        }
+
+        for (let day = 1; day <= daysInMonth; day++) {
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const pnl = dailyPnlData[dateStr];
+            let dayClass = '';
+            let pnlHtml = '';
+
+            if (pnl !== undefined) {
+                dayClass = pnl >= 0 ? 'day-green' : 'day-red';
+                pnlHtml = `<div class="pnl ${pnlColor(pnl)}" title="${formatCurrency(pnl)}">${formatCurrency(pnl)}</div>`;
+            }
+
+            calendarEl.innerHTML += `
+                <div class="calendar-day ${dayClass}">
+                    <div class="day-number">${day}</div>
+                    ${pnlHtml}
+                </div>`;
+        }
+    }
+    
+    function fetchAndUpdate() {
+        fetch('/api/status').then(res => res.json()).then(data => {
+            updateDashboard(data);
+        });
+    }
+
+    document.getElementById('prev-month').addEventListener('click', () => {
+        calendarDate.setMonth(calendarDate.getMonth() - 1);
+        renderCalendar();
+    });
+    document.getElementById('next-month').addEventListener('click', () => {
+        calendarDate.setMonth(calendarDate.getMonth() + 1);
+        renderCalendar();
+    });
+
+    // --- Event Listeners for Settings Tab ---
+    document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+        const payload = {
+            base_capital: document.getElementById('baseCapital').value,
+            brokerage: document.getElementById('brokerage').value,
+            max_positions: document.getElementById('maxPositions').value,
+            stock_list: document.getElementById('stockList').value,
+            tranches: document.getElementById('tranches').value,
+            interval: document.querySelector('input[name="interval"]:checked').value,
+        };
+        fetch('/api/save_settings', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        }).then(res => res.json()).then(data => alert(data.message));
+    });
+    
+    document.getElementById('addFundsBtn').addEventListener('click', () => {
+        const amount = document.getElementById('addFundsAmount').value;
+        if (!amount || amount <= 0) return alert("Please enter a valid amount.");
+        fetch('/api/update_my_balance', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ amount })
+        }).then(res => res.json()).then(data => {
+            alert(data.message);
+            fetchAndUpdate();
+        });
+    });
+
+    document.getElementById('changePasswordBtn').addEventListener('click', () => {
+        const payload = {
+            current_password: document.getElementById('currentPassword').value,
+            new_password: document.getElementById('newPassword').value,
+        };
+        fetch('/api/change_my_password', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        }).then(res => res.json()).then(data => {
+            alert(data.message);
+            if(data.status === 'success') {
+                document.getElementById('currentPassword').value = '';
+                document.getElementById('newPassword').value = '';
+            }
+        });
+    });
+    
+    document.getElementById('saveTelegramBtn').addEventListener('click', () => {
+        const chatId = document.getElementById('telegramChatId').value;
+        fetch('/api/save_telegram_id', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ telegram_chat_id: chatId })
+        }).then(res => res.json()).then(data => {
+            alert(data.message);
+        });
+    });
+
+    document.getElementById('runStrategyBtn').addEventListener('click', () => {
+        document.getElementById('logContainer').textContent = 'Executing strategy...';
+        fetch('/api/run_strategy', { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('logContainer').textContent = data.log.join('\n');
+            fetchAndUpdate(); // Refresh all data after running
+        });
+    });
+
+    document.getElementById('resetBtn').addEventListener('click', () => {
+        if (confirm('Are you sure you want to reset your portfolio?')) {
+            fetch('/api/reset', { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.status);
+                fetchAndUpdate();
+            });
+        }
+    });
+
+    // Initial Load
+    fetchAndUpdate();
+    
+    // Set up a regular fetch to update P/L data
+    setInterval(fetchAndUpdate, 60000); // Refresh every 60 seconds
+});
+</script>
+{% endblock %}
