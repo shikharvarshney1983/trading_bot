@@ -1,0 +1,10 @@
+numpy==1.23.5
+Flask
+Flask-Login
+Flask-Bcrypt
+pandas
+pandas-ta
+yfinance
+python-dotenv
+requests
+APScheduler
