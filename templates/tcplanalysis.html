@@ -1,0 +1,502 @@
+<!-- Chosen Palette: Classic & professional -->
+<!-- Application Structure Plan: The application is structured as a single-page interactive dashboard with a sticky top navigation bar for easy access to key analytical sections: Overview, Growth Strategy, Market Context, Valuation Modeler, and Investment Rationale. This non-linear structure was chosen to empower users (investors, analysts) to explore data in the order most relevant to them, rather than following a rigid report format. The core of the application is the 'Valuation Modeler,' which allows for direct interaction with data inputs (sliders for growth and multiples) to see real-time output on charts. This transforms the user from a passive information consumer into an active analyst, which is the primary goal for an investment analysis tool. -->
+<!-- Visualization & Content Choices: 
+- Overview: Report Info (Company Summary, Financials) -> Goal (Inform) -> Viz (Key stat cards, Combo Bar/Line chart) -> Interaction (Hover states, tooltips) -> Justification (Provides a quick, high-level summary on landing) -> Library (Chart.js).
+- Growth Strategy: Report Info (Four growth pillars) -> Goal (Organize/Inform) -> Viz (Interactive cards in a grid) -> Interaction (Click to reveal detailed text) -> Justification (Presents strategy cleanly without initial clutter) -> Method (HTML/CSS/JS).
+- Market Context: Report Info (Industry trends, Peer data) -> Goal (Compare) -> Viz (Tabbed view with a dynamic bar chart for all peers) -> Interaction (Tabs to switch content, dropdown to change chart metric) -> Justification (Allows direct, multi-metric comparison against a full peer set) -> Library (Chart.js).
+- Valuation Modeler: Report Info (Valuation cases) -> Goal (Explore relationships/change) -> Viz (Bar chart with sliders and year selector) -> Interaction (Sliders and year selector recalculate a 'Custom' scenario and update the chart in real-time with detailed tooltips) -> Justification (A powerful tool for multi-year scenario analysis) -> Library (Chart.js).
+- Rationale: Report Info (Thesis/Antithesis) -> Goal (Compare) -> Viz (Side-by-side lists) -> Interaction (None) -> Justification (Clear, balanced summary of pros and cons) -> Method (HTML/CSS).
+- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TCPL Packaging - Interactive Investment Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #ecf0f1; color: #2c3e50; }
+        .chart-container { position: relative; width: 100%; max-width: 700px; margin-left: auto; margin-right: auto; height: 350px; max-height: 400px; }
+        @media (max-width: 768px) { .chart-container { height: 300px; } }
+        .nav-link { transition: color 0.3s, border-bottom-color 0.3s; }
+        .nav-link:hover, .nav-link.active { color: #3498db; border-bottom-color: #3498db; }
+        .details-content { max-height: 0; overflow: hidden; transition: max-height 0.5s ease-in-out; }
+        .year-btn { background-color: #bdc3c7; color: #7f8c8d; padding: 8px 16px; border-radius: 6px; font-weight: 500; transition: all 0.3s; }
+        .year-btn.active { background-color: #3498db; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="bg-[#2c3e50] text-white p-4 text-center sticky top-0 z-50 shadow-lg">
+        <h1 class="text-2xl md:text-3xl font-bold">TCPL Packaging Ltd. Interactive Analysis</h1>
+    </header>
+
+    <nav class="bg-white shadow-md sticky top-[68px] md:top-[76px] z-40">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-center space-x-4 md:space-x-8 overflow-x-auto whitespace-nowrap">
+                <a href="#overview" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Overview</a>
+                <a href="#growth-strategy" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Growth Strategy</a>
+                <a href="#market-context" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Market Context</a>
+                <a href="#valuation-modeler" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Valuation Modeler</a>
+                <a href="#rationale" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Rationale</a>
+            </div>
+        </div>
+    </nav>
+
+    <main class="container mx-auto p-4 md:p-8">
+
+        <section id="overview" class="mb-12 scroll-mt-32">
+            <h2 class="text-3xl font-bold text-[#2c3e50] mb-2">Company Overview</h2>
+            <p class="text-[#34495e] mb-6">This section provides a high-level summary of TCPL Packaging, its business model, and key financial performance indicators.</p>
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-semibold mb-3">Who They Are</h3>
+                    <p class="text-gray-700 leading-relaxed">TCPL Packaging is a premier Indian manufacturer of printed folding cartons, flexible packaging, and rigid boxes. Serving blue-chip clients in resilient sectors like FMCG, Food & Beverage, and Pharmaceuticals, the company has established itself as a reliable partner for high-quality packaging solutions. Under the experienced leadership of the Kanoria family, TCPL has a strong track record of execution and growth.</p>
+                    <div class="mt-6 grid grid-cols-2 gap-4 text-center">
+                        <div class="bg-gray-100 p-3 rounded">
+                            <div class="text-2xl font-bold text-[#2c3e50]">15%+</div>
+                            <div class="text-sm text-gray-600">5-Yr Sales CAGR</div>
+                        </div>
+                        <div class="bg-gray-100 p-3 rounded">
+                            <div class="text-2xl font-bold text-[#2c3e50]">19%+</div>
+                            <div class="text-sm text-gray-600">Target RoCE</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="lg:col-span-3 bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-semibold mb-3">Historical Performance</h3>
+                    <div class="chart-container">
+                        <canvas id="financialsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="growth-strategy" class="mb-12 scroll-mt-32">
+            <h2 class="text-3xl font-bold text-[#2c3e50] mb-2">Interactive Growth Strategy</h2>
+            <p class="text-[#34495e] mb-6">TCPL's long-term growth is built on four key pillars. Click on each pillar to explore the specific strategic initiatives.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="growth-card bg-white p-6 rounded-lg shadow-md cursor-pointer hover:shadow-xl transition-shadow duration-300" data-target="details-sales">
+                    <h3 class="text-xl font-semibold text-[#3498db]">1. Sales Growth</h3>
+                    <p class="text-sm mt-2 text-gray-600">Expanding revenue streams through market and product diversification. Click to see more.</p>
+                    <div id="details-sales" class="details-content text-sm text-gray-600 mt-4">
+                        <ul class="list-disc list-inside space-y-1">
+                            <li><strong>Market Share Gains:</strong> Leveraging scale and quality to win business from unorganized players.</li>
+                            <li><strong>New Geographies:</strong> Actively increasing export footprint to de-risk and capture global demand.</li>
+                            <li><strong>New Categories:</strong> Entering high-value segments like premium rigid boxes and flexible packaging.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="growth-card bg-white p-6 rounded-lg shadow-md cursor-pointer hover:shadow-xl transition-shadow duration-300" data-target="details-leverage">
+                    <h3 class="text-xl font-semibold text-[#2ecc71]">2. Operating Leverage</h3>
+                    <p class="text-sm mt-2 text-gray-600">Improving efficiency and profitability as the company scales. Click to see more.</p>
+                    <div id="details-leverage" class="details-content text-sm text-gray-600 mt-4">
+                        <ul class="list-disc list-inside space-y-1">
+                             <li><strong>Higher Capacity Utilization:</strong> Driving more volume through newly added and existing plants.</li>
+                            <li><strong>Process Improvement:</strong> Implementing automation and best practices to optimize production flow.</li>
+                            <li><strong>Network Effects:</strong> Utilizing a wide plant network to serve national clients efficiently.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="growth-card bg-white p-6 rounded-lg shadow-md cursor-pointer hover:shadow-xl transition-shadow duration-300" data-target="details-margin">
+                    <h3 class="text-xl font-semibold text-[#e74c3c]">3. Margin Expansion</h3>
+                    <p class="text-sm mt-2 text-gray-600">Enhancing profitability through strategic and operational shifts. Click to see more.</p>
+                    <div id="details-margin" class="details-content text-sm text-gray-600 mt-4">
+                        <ul class="list-disc list-inside space-y-1">
+                           <li><strong>Higher Margin Products:</strong> Shifting product mix towards value-added packaging solutions.</li>
+                           <li><strong>Cost Reduction:</strong> Ongoing initiatives to optimize raw material sourcing and consumption.</li>
+                           <li><strong>Backward Integration:</strong> Exploring opportunities to control more of the value chain.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="growth-card bg-white p-6 rounded-lg shadow-md cursor-pointer hover:shadow-xl transition-shadow duration-300" data-target="details-debt">
+                    <h3 class="text-xl font-semibold text-[#f39c12]">4. Prudent Finances</h3>
+                    <p class="text-sm mt-2 text-gray-600">Maintaining a strong and healthy balance sheet during growth. Click to see more.</p>
+                    <div id="details-debt" class="details-content text-sm text-gray-600 mt-4">
+                         <ul class="list-disc list-inside space-y-1">
+                           <li><strong>Healthy D/E Ratio:</strong> Managing debt levels prudently while funding expansion.</li>
+                           <li><strong>Working Capital:</strong> Efficiently managing receivables and inventory cycles.</li>
+                           <li><strong>Capital Allocation:</strong> Disciplined approach to new investments, focusing on high-return projects.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="market-context" class="mb-12 scroll-mt-32">
+            <h2 class="text-3xl font-bold text-[#2c3e50] mb-2">Market & Competitive Context</h2>
+            <p class="text-[#34495e] mb-6">Analyze TCPL's position within the broader industry and against its key competitors. Use the controls to switch views and metrics.</p>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="border-b border-gray-200 mb-4">
+                    <nav class="flex space-x-4" id="market-tabs">
+                        <button data-content="industry" class="market-tab-btn py-2 px-4 text-lg font-medium text-[#3498db] border-b-2 border-[#3498db]">Industry Tailwinds</button>
+                        <button data-content="peers" class="market-tab-btn py-2 px-4 text-lg font-medium text-gray-500">Peer Comparison</button>
+                    </nav>
+                </div>
+                <div id="industry-content" class="market-content">
+                    <ul class="space-y-3">
+                        <li class="flex items-start"><span class="text-xl text-green-500 mr-3">✓</span><div><strong>Growth in End-User Industries:</strong> Rising disposable incomes fuel demand in FMCG, F&B, and Pharma.</div></li>
+                        <li class="flex items-start"><span class="text-xl text-green-500 mr-3">✓</span><div><strong>Shift to Sustainability:</strong> Strong regulatory and consumer push from plastic to paper-based, recyclable packaging.</div></li>
+                        <li class="flex items-start"><span class="text-xl text-green-500 mr-3">✓</span><div><strong>Trend of Premiumization:</strong> Brands are using high-quality, complex packaging as a key differentiator.</div></li>
+                        <li class="flex items-start"><span class="text-xl text-green-500 mr-3">✓</span><div><strong>Market Formalization:</strong> Consolidation and shift from unorganized to organized players benefits established leaders like TCPL.</div></li>
+                    </ul>
+                </div>
+                <div id="peers-content" class="market-content hidden">
+                    <div class="flex flex-col md:flex-row md:items-center md:space-x-4 mb-4">
+                        <label for="peer-metric-selector" class="font-semibold mb-2 md:mb-0">Select Metric to Compare:</label>
+                        <select id="peer-metric-selector" class="p-2 border rounded-md bg-gray-50">
+                            <option value="p/e" selected>P/E Ratio</option>
+                            <option value="roce">RoCE (%)</option>
+                            <option value="roe">RoE (%)</option>
+                            <option value="opm">OPM (%)</option>
+                            <option value="d/e">D/E Ratio</option>
+                        </select>
+                    </div>
+                    <div class="chart-container h-[400px] md:h-[450px]">
+                        <canvas id="peerComparisonChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="valuation-modeler" class="mb-12 scroll-mt-32">
+            <h2 class="text-3xl font-bold text-[#2c3e50] mb-2">Interactive Valuation Modeler</h2>
+            <p class="text-[#34495e] mb-6">Use the controls to model valuation scenarios. Select a target year, then adjust your assumptions using the sliders to see a custom projection.</p>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                 <div class="flex justify-center space-x-2 md:space-x-4 mb-6" id="year-selector">
+                    <button data-year="26" class="year-btn active">FY26</button>
+                    <button data-year="27" class="year-btn">FY27</button>
+                    <button data-year="28" class="year-btn">FY28</button>
+                </div>
+                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2">
+                        <div class="chart-container" style="max-width: 100%;">
+                            <canvas id="valuationChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="space-y-6">
+                        <div>
+                            <label for="sales-growth-slider" class="block font-semibold mb-1">Sales CAGR Expectation: <span id="sales-growth-value" class="font-bold text-[#3498db]">15%</span></label>
+                            <input id="sales-growth-slider" type="range" min="10" max="22" value="15" step="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div>
+                            <label for="pe-multiple-slider" class="block font-semibold mb-1">Target P/E Multiple: <span id="pe-multiple-value" class="font-bold text-[#3498db]">22x</span></label>
+                            <input id="pe-multiple-slider" type="range" min="14" max="28" value="22" step="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div class="bg-gray-100 p-4 rounded-lg text-center">
+                            <div id="custom-valuation-title" class="text-gray-600">Your Custom Projected Price (FY26)</div>
+                            <div id="custom-valuation-output" class="text-3xl font-bold text-[#2c3e50] mt-1">₹4378</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="rationale" class="scroll-mt-32">
+            <h2 class="text-3xl font-bold text-[#2c3e50] mb-2">Investment Rationale</h2>
+             <p class="text-[#34495e] mb-6">A balanced view of the primary factors supporting an investment thesis alongside the key risks to consider.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-2xl font-semibold text-green-600 mb-4">Investment Thesis (Pros)</h3>
+                    <ul class="space-y-4">
+                        <li class="flex items-start"><span class="text-2xl mr-3">👍</span><div><strong>Market Leadership:</strong> A dominant player in a structurally growing industry with significant barriers to entry.</div></li>
+                        <li class="flex items-start"><span class="text-2xl mr-3">👍</span><div><strong>Visible Growth Path:</strong> Clear growth levers from capacity expansion, new product segments, and export opportunities.</div></li>
+                        <li class="flex items-start"><span class="text-2xl mr-3">👍</span><div><strong>Strong Financials:</strong> Continuously improving return ratios (RoCE) and margins driven by scale and efficiency.</div></li>
+                        <li class="flex items-start"><span class="text-2xl mr-3">👍</span><div><strong>Attractive Valuation:</strong> Currently trades at a discount to peers, offering a potential valuation re-rating opportunity.</div></li>
+                    </ul>
+                </div>
+                 <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-2xl font-semibold text-red-600 mb-4">Antithesis (Risks)</h3>
+                    <ul class="space-y-4">
+                        <li class="flex items-start"><span class="text-2xl mr-3">👎</span><div><strong>Input Cost Volatility:</strong> Margins can be sensitive to fluctuations in global paperboard prices.</div></li>
+                        <li class="flex items-start"><span class="text-2xl mr-3">👎</span><div><strong>Client Concentration:</strong> Significant revenue portion comes from a few large FMCG clients.</div></li>
+                        <li class="flex items-start"><span class="text-2xl mr-3">👎</span><div><strong>Execution & Competition:</strong> Risk of delays in new projects and increasing competition from other organized players.</div></li>
+                        <li class="flex items-start"><span class="text-2xl mr-3">👎</span><div><strong>Macroeconomic Headwinds:</strong> A broad economic slowdown could temper consumer demand and impact volumes.</div></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+    </main>
+    
+    <footer class="text-center mt-12 py-6 bg-white border-t">
+        <p class="text-sm text-gray-500">Disclaimer: This interactive analysis is for informational and educational purposes only. It does not constitute financial advice. Data is based on public information and estimates. Always consult a qualified financial advisor before making investment decisions.</p>
+    </footer>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const financialsCtx = document.getElementById('financialsChart').getContext('2d');
+        new Chart(financialsCtx, {
+            type: 'bar',
+            data: {
+                labels: ['FY21', 'FY22', 'FY23', 'FY24', 'FY25 (E)'],
+                datasets: [
+                    {
+                        label: 'Revenue (₹ Cr)',
+                        data: [904, 1086, 1475, 1541, 1770],
+                        backgroundColor: '#34495e',
+                        yAxisID: 'y_revenue',
+                        order: 2
+                    },
+                    {
+                        label: 'PAT (₹ Cr)',
+                        data: [33, 47, 110, 99, 143],
+                        backgroundColor: '#f1c40f',
+                        yAxisID: 'y_pat_margin',
+                        order: 2
+                    },
+                    {
+                        type: 'line',
+                        label: 'EBITDA Margin (%)',
+                        data: [15.1, 14.5, 16.7, 16.3, 16.6],
+                        borderColor: '#e74c3c',
+                        backgroundColor: '#e74c3c',
+                        yAxisID: 'y_pat_margin',
+                        tension: 0.2,
+                        order: 1
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y_revenue: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: { display: true, text: 'Revenue (₹ Cr)' }
+                    },
+                    y_pat_margin: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        grid: { drawOnChartArea: false },
+                        title: { display: true, text: 'PAT (₹ Cr) & Margin (%)' }
+                    }
+                },
+                plugins: {
+                    tooltip: { mode: 'index', intersect: false }
+                }
+            }
+        });
+
+        const growthCards = document.querySelectorAll('.growth-card');
+        growthCards.forEach(card => {
+            card.addEventListener('click', () => {
+                const targetId = card.getAttribute('data-target');
+                const content = document.getElementById(targetId);
+                if (content.style.maxHeight) {
+                    content.style.maxHeight = null;
+                } else {
+                    content.style.maxHeight = content.scrollHeight + "px";
+                }
+            });
+        });
+
+        const marketTabs = document.getElementById('market-tabs');
+        const marketContents = document.querySelectorAll('.market-content');
+        marketTabs.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                marketTabs.querySelectorAll('button').forEach(btn => {
+                    btn.classList.remove('text-[#3498db]', 'border-[#3498db]');
+                    btn.classList.add('text-gray-500');
+                });
+                e.target.classList.add('text-[#3498db]', 'border-[#3498db]');
+                e.target.classList.remove('text-gray-500');
+
+                const contentId = e.target.getAttribute('data-content');
+                marketContents.forEach(content => {
+                    content.id === `${contentId}-content` ? content.classList.remove('hidden') : content.classList.add('hidden');
+                });
+            }
+        });
+        
+        const peerData = {
+            labels: ['TCPL', 'Huhtamaki', 'Mold-Tek', 'Uflex', 'Jindal Poly', 'Cosmo First'],
+            'p/e': { data: [24.6, 19.97, 38.89, 30.25, 6.36, 33.68], label: 'P/E Ratio' },
+            'roce': { data: [25.6, 10.21, 14.49, 8.27, 7.30, 5.85], label: 'RoCE (%)' },
+            'roe': { data: [22.2, 7.54, 11.55, 4.08, 5.53, 3.35], label: 'RoE (%)' },
+            'opm': { data: [16.6, 5.32, null, 6.58, 1.57, 6.20], label: 'OPM (%)' },
+            'd/e': { data: [0.99, 0.08, 0.21, 1.00, 0.12, 0.82], label: 'D/E Ratio' }
+        };
+
+        const peerComparisonCtx = document.getElementById('peerComparisonChart').getContext('2d');
+        const peerChart = new Chart(peerComparisonCtx, {
+            type: 'bar',
+            data: {
+                labels: peerData.labels,
+                datasets: [{
+                    label: peerData['p/e'].label,
+                    data: peerData['p/e'].data,
+                    backgroundColor: ['#2ecc71', '#3498db', '#34495e', '#9b59b6', '#f1c40f', '#e74c3c'],
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                indexAxis: 'y',
+                scales: { x: { beginAtZero: true } },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        document.getElementById('peer-metric-selector').addEventListener('change', (e) => {
+            const selectedMetric = e.target.value;
+            peerChart.data.datasets[0].data = peerData[selectedMetric].data;
+            peerChart.data.datasets[0].label = peerData[selectedMetric].label;
+            peerChart.update();
+        });
+
+        const valuationData = {
+            '26': {
+                bear: { price: 3276, growth: '10%', margin: '15.0%', pe: '18x' },
+                base: { price: 4378, growth: '15%', margin: '16.8%', pe: '22x' },
+                bull: { price: 5913, growth: '20%', margin: '18.0%', pe: '27x' },
+            },
+            '27': {
+                bear: { price: 3600, growth: '10%', margin: '15.0%', pe: '18x' },
+                base: { price: 5038, growth: '15%', margin: '16.8%', pe: '22x' },
+                bull: { price: 7101, growth: '20%', margin: '18.0%', pe: '27x' },
+            },
+            '28': {
+                bear: { price: 3960, growth: '10%', margin: '15.0%', pe: '18x' },
+                base: { price: 5786, growth: '15%', margin: '16.8%', pe: '22x' },
+                bull: { price: 8505, growth: '20%', margin: '18.0%', pe: '27x' },
+            }
+        };
+        let customValuationCache = {};
+
+        const valuationCtx = document.getElementById('valuationChart').getContext('2d');
+        const valuationChart = new Chart(valuationCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Bear', 'Base', 'Bull', 'Your Scenario'],
+                datasets: [{
+                    label: 'Projected Share Price',
+                    data: [],
+                    backgroundColor: ['#e74c3c', '#34495e', '#2ecc71', '#3498db']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: false, title: { display: true, text: 'Projected Price (₹)' } } },
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let mainLabel = `Price: ₹${context.parsed.y}`;
+                                const scenario = context.label.toLowerCase().replace(' ', '');
+                                const year = document.querySelector('.year-btn.active').dataset.year;
+                                
+                                let details;
+                                if (scenario === 'yourscenario') {
+                                    details = customValuationCache[year];
+                                } else {
+                                    details = valuationData[year][scenario];
+                                }
+
+                                if (details) {
+                                    return [mainLabel, `Growth: ${details.growth}`, `Margin: ${details.margin}`, `P/E: ${details.pe}`];
+                                }
+                                return mainLabel;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        const salesSlider = document.getElementById('sales-growth-slider');
+        const peSlider = document.getElementById('pe-multiple-slider');
+        const salesValue = document.getElementById('sales-growth-value');
+        const peValue = document.getElementById('pe-multiple-value');
+        const customValuationOutput = document.getElementById('custom-valuation-output');
+        const customValuationTitle = document.getElementById('custom-valuation-title');
+        const yearSelector = document.getElementById('year-selector');
+
+        function updateValuationChart(year) {
+            const yearData = valuationData[year];
+            const customPrice = calculateCustomValuation(year);
+            valuationChart.data.datasets[0].data = [
+                yearData.bear.price,
+                yearData.base.price,
+                yearData.bull.price,
+                customPrice
+            ];
+            valuationChart.options.scales.y.title.text = `Projected Price (FY${year})`;
+            valuationChart.update();
+        }
+        
+        function calculateCustomValuation(year){
+            const salesCAGR = parseFloat(salesSlider.value);
+            const peMultiple = parseFloat(peSlider.value);
+            const yearsToProject = parseInt(year) - 25;
+
+            salesValue.textContent = `${salesCAGR}%`;
+            peValue.textContent = `${peMultiple}x`;
+
+            const currentEPS = 157.16; // FY25 EPS
+            const patGrowthRate = (salesCAGR / 100) * 1.1; // Assuming PAT grows 1.1x sales growth
+
+            const projectedEPS = currentEPS * Math.pow(1 + patGrowthRate, yearsToProject);
+            const customPrice = projectedEPS * peMultiple;
+
+            customValuationTitle.textContent = `Your Custom Projected Price (FY${year})`;
+            customValuationOutput.textContent = `₹${customPrice.toFixed(0)}`;
+            
+            customValuationCache[year] = {
+                price: customPrice.toFixed(0),
+                growth: `${salesCAGR}%`,
+                margin: 'Custom',
+                pe: `${peMultiple}x`
+            };
+            return customPrice;
+        }
+
+        yearSelector.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                yearSelector.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+                e.target.classList.add('active');
+                updateValuationChart(e.target.dataset.year);
+            }
+        });
+
+        salesSlider.addEventListener('input', () => {
+            const activeYear = yearSelector.querySelector('.active').dataset.year;
+            updateValuationChart(activeYear);
+        });
+        peSlider.addEventListener('input', () => {
+            const activeYear = yearSelector.querySelector('.active').dataset.year;
+            updateValuationChart(activeYear);
+        });
+
+        updateValuationChart('26');
+
+        const navLinks = document.querySelectorAll('.nav-link');
+        const sections = document.querySelectorAll('section');
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop;
+                if (pageYOffset >= sectionTop - 160) {
+                    current = section.getAttribute('id');
+                }
+            });
+
+            navLinks.forEach(link => {
+                link.classList.remove('active', 'text-[#3498db]', 'border-[#3498db]');
+                if (link.getAttribute('href').includes(current)) {
+                    link.classList.add('active', 'text-[#3498db]', 'border-[#3498db]');
+                }
+            });
+        });
+    });
+</script>
+
+</body>
+</html>
