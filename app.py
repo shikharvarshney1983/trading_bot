@@ -131,7 +131,11 @@ def logout():
     logout_user()
     flash("You have been logged out.", "info")
     return redirect(url_for('login'))
-
+    
+@app.route('/tcpl')
+def tcpl():
+    return render_template('tcplanalysis.html')
+    
 # --- Admin Routes ---
 @app.route('/admin')
 @login_required
