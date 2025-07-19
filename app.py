@@ -17,7 +17,7 @@ from flask_login import (
 )
 from functools import wraps
 from apscheduler.schedulers.background import BackgroundScheduler
-import io
+import io, logging
 
 # Local imports
 import database
@@ -32,6 +32,20 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = 'a-very-secret-key-that-should-be-changed'
 app.config['DATABASE'] = os.path.join(app.instance_path, database.DB_NAME)
 TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
+
+# Configure the logger to write to a file
+file_handler = logging.FileHandler('trading_bot.log')  # Specify your desired file name
+file_handler.setLevel(logging.INFO)  # Set the desired logging level for the file
+
+# Create a formatter for the log messages
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+file_handler.setFormatter(formatter)
+
+# Add the file handler to the Flask app's logger
+app.logger.addHandler(file_handler)
+
+# Optional: Set the overall log level for the app's logger (if not already set)
+app.logger.setLevel(logging.INFO)
 
 # --- Global Cache for Live Prices ---
 live_prices_cache = {}
@@ -74,7 +88,7 @@ def load_user(user_id):
 def send_telegram_message(chat_id, message):
     """Sends a message to a given Telegram chat ID."""
     if not TELEGRAM_BOT_TOKEN or not chat_id:
-        print("Telegram token or chat ID is missing. Skipping notification.")
+        app.logger.info("Telegram token or chat ID is missing. Skipping notification.")
         return
     
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -83,9 +97,9 @@ def send_telegram_message(chat_id, message):
     try:
         response = requests.post(url, json=payload)
         if response.status_code != 200:
-            print(f"Error sending Telegram message: {response.text}")
+            app.logger.warning(f"Error sending Telegram message: {response.text}")
     except Exception as e:
-        print(f"Exception while sending Telegram message: {e}")
+        app.logger.error(f"Exception while sending Telegram message: {e}")
 
 def is_market_open():
     """Checks if the Indian stock market is currently open."""
@@ -255,7 +269,7 @@ def get_status():
     
     tickers_to_fetch_now = [ticker for ticker in portfolio.keys() if ticker not in live_prices_cache]
     if tickers_to_fetch_now:
-        print(f"get_status: Fetching live prices for {tickers_to_fetch_now}")
+        app.logger.info(f"get_status: Fetching live prices for {tickers_to_fetch_now}")
         try:
             live_data = yf.download(tickers_to_fetch_now, period='1d', progress=False)
             if not live_data.empty:
@@ -265,13 +279,13 @@ def get_status():
                 else:
                     last_prices = close_prices.iloc[-1].to_dict()
                 
-                print(f"get_status: Fetched prices: {last_prices}")
+                app.logger.info(f"get_status: Fetched prices: {last_prices}")
                 
                 for ticker, price in last_prices.items():
                     if pd.notna(price):
                         live_prices_cache[ticker] = price
         except Exception as e:
-            print(f"get_status: Error fetching prices on-demand: {e}")
+            app.logger.error(f"get_status: Error fetching prices on-demand: {e}")
 
     unrealized_pnl = 0
     holdings_value = 0
@@ -673,7 +687,6 @@ def screener_page():
     results = db.execute('SELECT * FROM screener_results ORDER BY rank ASC').fetchall()
     last_run = db.execute('SELECT MAX(run_date) as last_run FROM screener_results').fetchone()
     db.close()
-    print(results)
     last_run_date = last_run['last_run'] if last_run and last_run['last_run'] else None
     
     return render_template('screener.html', results=results, last_run_date=last_run_date)
@@ -713,12 +726,6 @@ def download_screener_results():
 def execute_strategy_for_user(user_id):
     """A dedicated function to run the trading strategy for a single user."""
     log = []
-    
-    def _log_message(message):
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        full_message = f"[{timestamp}] {message}"
-        print(full_message)
-        log.append(full_message)
 
     db = database.get_db()
     try:
@@ -726,13 +733,13 @@ def execute_strategy_for_user(user_id):
         if not user:
             return ["User not found."], "Error"
 
-        _log_message(f"--- Running Strategy for {user['username']} ---")
+        app.logger.info(f"--- Running Strategy for {user['username']} ---")
         
         portfolio_rows = db.execute('SELECT * FROM portfolios WHERE user_id = ?', (user_id,)).fetchall()
         
         stock_list = [s.strip() for s in (user['stock_list'] or '').split(',') if s.strip()]
         if not stock_list:
-            _log_message("Error: Stock list is not configured.")
+            app.logger.info("Error: Stock list is not configured.")
             return log, "Error"
 
         max_open_positions = user['max_open_positions']
@@ -750,13 +757,13 @@ def execute_strategy_for_user(user_id):
         if all_data is None:
             raise Exception("Failed to fetch market data.")
 
-        _log_message("\n--- Checking Sell Conditions ---")
+        app.logger.info("\n--- Checking Sell Conditions ---")
         tickers_to_sell = []
         total_brokerage_session = 0
         for ticker, position in portfolio.items():
             stock_data = all_data.get(ticker)
             if stock_data is None or stock_data.empty:
-                _log_message(f"No data for {ticker}, cannot evaluate.")
+                app.logger.info(f"No data for {ticker}, cannot evaluate.")
                 continue
 
             latest_data = stock_data.iloc[-1]
@@ -792,7 +799,7 @@ def execute_strategy_for_user(user_id):
                 cash_balance += sell_value - brokerage
                 total_brokerage_session += brokerage
                 
-                _log_message(f"SELL: {ticker} Qty: {position['quantity']} @ ₹{sell_price:.2f}. Reason: {reason}")
+                app.logger.info(f"SELL: {ticker} Qty: {position['quantity']} @ ₹{sell_price:.2f}. Reason: {reason}")
                 db.execute('DELETE FROM portfolios WHERE user_id = ? AND ticker = ?', (user_id, ticker))
                 db.execute('INSERT INTO transactions (user_id, date, ticker, action, quantity, price, value) VALUES (?, ?, ?, ?, ?, ?, ?)',
                            (user_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ticker, 'SELL', position['quantity'], sell_price, sell_value))
@@ -803,7 +810,7 @@ def execute_strategy_for_user(user_id):
 
                 del portfolio[ticker]
 
-        _log_message("\n--- Checking Add-on Conditions ---")
+        app.logger.info("\n--- Checking Add-on Conditions ---")
         for ticker, position in portfolio.items():
             if str(position['tranche_level'] + 1) not in tranches:
                 continue
@@ -824,7 +831,7 @@ def execute_strategy_for_user(user_id):
                 if add_quantity > 0 and cash_balance >= trade_cost:
                     cash_balance -= trade_cost
                     total_brokerage_session += brokerage
-                    _log_message(f"ADD: {ticker} Qty: {add_quantity} @ ₹{add_price:.2f}")
+                    app.logger.info(f"ADD: {ticker} Qty: {add_quantity} @ ₹{add_price:.2f}")
                     
                     new_total_investment = position['total_investment'] + (add_quantity * add_price)
                     new_quantity = position['quantity'] + add_quantity
@@ -841,11 +848,11 @@ def execute_strategy_for_user(user_id):
 
                     portfolio[ticker]['quantity'] = new_quantity
                     
-        _log_message("\n--- Checking Buy Conditions ---")
+        app.logger.info("\n--- Checking Buy Conditions ---")
         if len(portfolio) < max_open_positions:
             for ticker in stock_list:
                 if len(portfolio) >= max_open_positions:
-                    _log_message("Max open positions reached.")
+                    app.logger.info("Max open positions reached.")
                     break
                 if ticker in portfolio: continue
 
@@ -867,7 +874,7 @@ def execute_strategy_for_user(user_id):
                     if quantity > 0 and cash_balance >= trade_cost:
                         cash_balance -= trade_cost
                         total_brokerage_session += brokerage
-                        _log_message(f"BUY: {ticker} Qty: {quantity} @ ₹{buy_price:.2f}")
+                        app.logger.info(f"BUY: {ticker} Qty: {quantity} @ ₹{buy_price:.2f}")
                         
                         db.execute('INSERT INTO portfolios (user_id, ticker, quantity, avg_price, total_investment, tranche_level, entry_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
                                    (user_id, ticker, quantity, buy_price, quantity * buy_price, 1, datetime.now().strftime('%Y-%m-%d')))
@@ -880,12 +887,12 @@ def execute_strategy_for_user(user_id):
 
                         portfolio[ticker] = {'ticker': ticker}
 
-        _log_message("\n--- Strategy Execution Finished ---")
+        app.logger.info("\n--- Strategy Execution Finished ---")
         db.execute('UPDATE users SET cash_balance = ?, total_brokerage = total_brokerage + ? WHERE id = ?', (cash_balance, total_brokerage_session, user_id))
         db.commit()
     except Exception as e:
         db.rollback()
-        _log_message(f"CRITICAL ERROR for {user['username']}: {e}")
+        app.logger.error(f"CRITICAL ERROR for {user['username']}: {e}")
         return log, "Error"
     finally:
         db.close()
@@ -895,26 +902,26 @@ def execute_strategy_for_user(user_id):
 # --- Background Schedulers ---
 def scheduled_screener_job():
     with app.app_context():
-        print("Scheduler: Running weekly stock screener job.")
+        app.logger.info("Scheduler: Running weekly stock screener job.")
         stock_screener.run_screener_process()
         
 def update_live_prices():
     """Scheduled job to fetch live prices for all tickers in portfolios."""
-    print("Scheduler: Running job to update live prices.")
+    app.logger.info("Scheduler: Running job to update live prices.")
     with app.app_context():
         db = database.get_db()
         tickers_rows = db.execute('SELECT DISTINCT ticker FROM portfolios').fetchall()
         db.close()
         
         if not tickers_rows:
-            print("Scheduler: No tickers in any portfolio. Skipping.")
+            app.logger.info("Scheduler: No tickers in any portfolio. Skipping.")
             return
 
         tickers = [row['ticker'] for row in tickers_rows]
         try:
             live_data = yf.download(tickers, period='1d', progress=False)
             if live_data.empty:
-                print("Scheduler: No data from yfinance.")
+                app.logger.info("Scheduler: No data from yfinance.")
                 return
             
             close_prices = live_data['Close']
@@ -923,19 +930,19 @@ def update_live_prices():
             else:
                 last_prices = close_prices.iloc[-1].to_dict()
 
-            print(f"Scheduler: Fetched prices: {last_prices}")
+            app.logger.info(f"Scheduler: Fetched prices: {last_prices}")
 
             for ticker, price in last_prices.items():
                 if pd.notna(price):
                     live_prices_cache[ticker] = price
-            print(f"Scheduler: Cache updated. Current cache: {live_prices_cache}")
+            app.logger.info(f"Scheduler: Cache updated. Current cache: {live_prices_cache}")
 
         except Exception as e:
-            print(f"Scheduler: Error fetching prices: {e}")
+            app.logger.error(f"Scheduler: Error fetching prices: {e}")
 
 def master_strategy_scheduler():
     """The main scheduler that checks and runs strategies for all eligible users."""
-    print("Master Scheduler: Checking for users to run strategy...")
+    app.logger.info("Master Scheduler: Checking for users to run strategy...")
     with app.app_context():
         db = database.get_db()
         users_to_run = db.execute('SELECT * FROM users WHERE auto_run_enabled = 1').fetchall()
