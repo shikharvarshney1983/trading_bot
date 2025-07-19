@@ -102,18 +102,53 @@ $(document).ready(function() {
         "order": [[ 0, "asc" ]] // Sort by Rank by default
     });
 
-    $('#runScreenerBtn').on('click', function() {
-        $(this).prop('disabled', true).text('Running...');
-        fetch('/api/run_screener', { method: 'POST' })
+    const screenerBtn = $('#runScreenerBtn');
+    let pollingInterval;
+
+    function checkStatus() {
+        fetch('/api/screener_status')
             .then(res => res.json())
             .then(data => {
+                if (data.status === 'running') {
+                    screenerBtn.prop('disabled', true).text('Running...');
+                    // If not already polling, start polling
+                    if (!pollingInterval) {
+                       pollingInterval = setInterval(checkStatus, 10000); // Poll every 10 seconds
+                    }
+                } else {
+                    screenerBtn.prop('disabled', false).text('Run Screener Now');
+                    // If polling is active, it means the task just finished
+                    if (pollingInterval) {
+                        clearInterval(pollingInterval);
+                        pollingInterval = null;
+                        alert('Watchlist process has finished!');
+                        window.location.reload(); // Reload to show new data
+                    }
+                }
+            });
+    }
+
+    // Check status on page load in case a task is already running
+    checkStatus();
+
+    screenerBtn.on('click', function() {
+        fetch('/api/run_screener', { method: 'POST' })
+            .then(res => {
+                if (res.status === 409) { // 409 Conflict
+                    screenerBtn.prop('disabled', false).text('Run Screener Now');
+                }
+                return res.json();
+            })
+            .then(data => {
                 alert(data.message);
-                window.location.reload();
+                if (data.status === 'success') {
+                    checkStatus(); // Start checking status immediately
+                }
             })
             .catch(err => {
-                console.error('Error running screener:', err);
-                alert('An error occurred. Check the console for details.');
-                $(this).prop('disabled', false).text('Run Screener Now');
+                console.error('Error starting screener:', err);
+                alert('An error occurred while trying to start the process.');
+                screenerBtn.prop('disabled', false).text('Run Screener Now');
             });
     });
 });
