@@ -160,9 +160,22 @@
                 </div>
                 <!-- Actions Card -->
                 <div class="card mb-4">
-                    <div class="card-header fw-bold">Execute Strategy</div>
+                    <div class="card-header fw-bold">Strategy Execution</div>
                     <div class="card-body">
-                        <button id="runStrategyBtn" class="btn btn-success">Run Strategy</button>
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="autoRunEnabled">
+                                <label class="form-check-label" for="autoRunEnabled">
+                                    Enable Automated Strategy Runs
+                                </label>
+                            </div>
+                            <small class="form-text text-muted">
+                                Runs execute at 3:00 PM IST. Daily runs on weekdays, weekly runs on Fridays.
+                            </small>
+                        </div>
+                        <button id="saveScheduleBtn" class="btn btn-info">Save Schedule</button>
+                        <hr>
+                        <button id="runStrategyBtn" class="btn btn-success">Run Strategy Manually</button>
                         <button id="resetBtn" class="btn btn-danger">Reset Portfolio</button>
                     </div>
                 </div>
@@ -279,6 +292,9 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('tranches').value = JSON.stringify(JSON.parse(data.settings.tranche_sizes || '{}'), null, 2);
         document.querySelector(`input[name="interval"][value="${data.settings.execution_interval}"]`).checked = true;
         document.getElementById('telegramChatId').value = data.settings.telegram_chat_id || '';
+        
+        // Schedule settings
+        document.getElementById('autoRunEnabled').checked = data.settings.auto_run_enabled;
     }
 
     function renderCalendar() {
@@ -346,6 +362,17 @@ document.addEventListener('DOMContentLoaded', function() {
         }).then(res => res.json()).then(data => alert(data.message));
     });
     
+    document.getElementById('saveScheduleBtn').addEventListener('click', () => {
+        const payload = {
+            auto_run_enabled: document.getElementById('autoRunEnabled').checked
+        };
+        fetch('/api/save_schedule_settings', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        }).then(res => res.json()).then(data => alert(data.message));
+    });
+
     document.getElementById('addFundsBtn').addEventListener('click', () => {
         const amount = document.getElementById('addFundsAmount').value;
         if (!amount || amount <= 0) return alert("Please enter a valid amount.");
@@ -394,7 +421,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(res => res.json())
         .then(data => {
             document.getElementById('logContainer').textContent = data.log.join('\n');
-            fetchAndUpdate(); // Refresh all data after running
+            fetchAndUpdate();
         });
     });
 
@@ -412,8 +439,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initial Load
     fetchAndUpdate();
     
-    // Set up a regular fetch to update P/L data
-    setInterval(fetchAndUpdate, 60000); // Refresh every 60 seconds
+    setInterval(fetchAndUpdate, 10000);
 });
 </script>
 {% endblock %}
