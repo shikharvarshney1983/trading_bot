@@ -13,7 +13,7 @@ class TradingBot:
         self.interval = interval
         self.all_data = {}
         self.log = []
-        logging.basicConfig(level=logging.INFO)
+        logging.basicConfig(filename='trading_bot.log', level=logging.INFO)
 
     def _log_message(self, message):
         """Logs a message to the instance's log."""
