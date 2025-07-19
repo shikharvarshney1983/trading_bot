@@ -10,6 +10,7 @@ import logging
 
 DB_PATH = os.path.join('instance', 'trading.db')
 logger = logging.getLogger(__name__)
+logging.basicConfig(filename='trading_bot.log', level=logging.INFO)
 
 def get_nse_stocks_from_db():
     """
