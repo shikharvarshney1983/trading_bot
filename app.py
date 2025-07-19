@@ -18,6 +18,7 @@ from flask_login import (
 from functools import wraps
 from apscheduler.schedulers.background import BackgroundScheduler
 import io, logging
+import threading
 
 # Local imports
 import database
@@ -691,15 +692,58 @@ def screener_page():
     
     return render_template('screener.html', results=results, last_run_date=last_run_date)
 
+def run_screener_in_background():
+    """Wrapper function to run the screener and update its status."""
+    with app.app_context():
+        db = database.get_db()
+        try:
+            # Set status to 'running'
+            db.execute("UPDATE app_state SET value = 'running' WHERE key = 'screener_status'")
+            db.commit()
+            print("Background screener process started.")
+            stock_screener.run_screener_process()
+            print("Background screener process finished.")
+        except Exception as e:
+            print(f"Error in background screener process: {e}")
+        finally:
+            # Set status back to 'idle' when done, regardless of success or failure
+            db.execute("UPDATE app_state SET value = 'idle' WHERE key = 'screener_status'")
+            db.commit()
+            db.close()
+
 @app.route('/api/run_screener', methods=['POST'])
 @login_required
 @admin_required
 def run_screener_api():
-    try:
-        stock_screener.run_screener_process()
-        return jsonify({'status': 'success', 'message': 'Screener process completed successfully!'})
-    except Exception as e:
-        return jsonify({'status': 'error', 'message': f'An error occurred: {e}'}), 500
+    db = database.get_db()
+    status_row = db.execute("SELECT value FROM app_state WHERE key = 'screener_status'").fetchone()
+    db.close()
+
+    if status_row and status_row['value'] == 'running':
+        return jsonify({
+            'status': 'error',
+            'message': 'A watchlist process is already running. Please wait for it to complete.'
+        }), 409 # 409 Conflict
+
+    # Create and start the background thread
+    thread = threading.Thread(target=run_screener_in_background)
+    thread.daemon = True
+    thread.start()
+    
+    return jsonify({
+        'status': 'success', 
+        'message': 'Watchlist process started in the background. You will be notified when it completes.'
+    })
+
+@app.route('/api/screener_status')
+@login_required
+def screener_status():
+    """API endpoint to get the current status of the screener task."""
+    db = database.get_db()
+    status_row = db.execute("SELECT value FROM app_state WHERE key = 'screener_status'").fetchone()
+    db.close()
+    status = status_row['value'] if status_row else 'unknown'
+    return jsonify({'status': status})
 
 @app.route('/api/download_screener_results')
 @login_required
