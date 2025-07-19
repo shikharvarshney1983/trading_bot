@@ -9,7 +9,7 @@ import pytz
 import requests
 from dotenv import load_dotenv
 from flask import (
-    Flask, jsonify, request, render_template, redirect, url_for, flash
+    Flask, jsonify, request, render_template, redirect, url_for, flash, send_file
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 from flask_login import (
@@ -17,10 +17,12 @@ from flask_login import (
 )
 from functools import wraps
 from apscheduler.schedulers.background import BackgroundScheduler
+import io
 
 # Local imports
 import database
 from trading_bot import TradingBot
+import stock_screener # Import the new screener script
 
 # --- Load Environment Variables ---
 load_dotenv()
@@ -131,11 +133,7 @@ def logout():
     logout_user()
     flash("You have been logged out.", "info")
     return redirect(url_for('login'))
-    
-@app.route('/tcpl')
-def tcpl():
-    return render_template('tcplanalysis.html')
-    
+
 # --- Admin Routes ---
 @app.route('/admin')
 @login_required
@@ -255,7 +253,6 @@ def get_status():
     portfolio = {row['ticker']: {key: row[key] for key in row.keys()} for row in portfolio_rows}
     transactions = [{key: row[key] for key in row.keys()} for row in transaction_rows]
     
-    # --- On-demand price fetching for tickers not in cache ---
     tickers_to_fetch_now = [ticker for ticker in portfolio.keys() if ticker not in live_prices_cache]
     if tickers_to_fetch_now:
         print(f"get_status: Fetching live prices for {tickers_to_fetch_now}")
@@ -263,10 +260,12 @@ def get_status():
             live_data = yf.download(tickers_to_fetch_now, period='1d', progress=False)
             if not live_data.empty:
                 close_prices = live_data['Close']
-                if isinstance(close_prices, pd.Series): # Handle single ticker case
+                if isinstance(close_prices, pd.Series):
                     last_prices = {tickers_to_fetch_now[0]: close_prices.iloc[-1]}
-                else: # Multiple tickers
+                else:
                     last_prices = close_prices.iloc[-1].to_dict()
+                
+                print(f"get_status: Fetched prices: {last_prices}")
                 
                 for ticker, price in last_prices.items():
                     if pd.notna(price):
@@ -396,6 +395,26 @@ def save_settings():
     
     return jsonify({'status': 'success', 'message': 'Settings saved successfully!'})
 
+@app.route('/api/save_schedule_settings', methods=['POST'])
+@login_required
+def save_schedule_settings():
+    data = request.json
+    user_id = current_user.id
+    
+    is_enabled = data.get('auto_run_enabled', False)
+
+    db = database.get_db()
+    try:
+        db.execute('UPDATE users SET auto_run_enabled = ? WHERE id = ?', (is_enabled, user_id))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        return jsonify({'status': 'error', 'message': f'Database error: {e}'}), 500
+    finally:
+        db.close()
+        
+    return jsonify({'status': 'success', 'message': 'Schedule settings saved!'})
+
 @app.route('/api/save_telegram_id', methods=['POST'])
 @login_required
 def save_telegram_id():
@@ -448,6 +467,251 @@ def change_my_password():
 @login_required
 def run_strategy():
     user_id = current_user.id
+    log, status = execute_strategy_for_user(user_id)
+    return jsonify({'status': status, 'log': log})
+
+
+@app.route('/api/reset', methods=['POST'])
+@login_required
+def reset_portfolio():
+    user_id = current_user.id
+    db = database.get_db()
+    try:
+        user = db.execute('SELECT base_capital FROM users WHERE id = ?', (user_id,)).fetchone()
+        if not user:
+            return jsonify({'status': 'error', 'message': 'User not found'}), 404
+
+        new_cash_balance = user['base_capital'] * 0.40
+
+        db.execute('UPDATE users SET cash_balance = ?, total_brokerage = 0 WHERE id = ?', (new_cash_balance, user_id))
+        db.execute('DELETE FROM portfolios WHERE user_id = ?', (user_id,))
+        db.execute('DELETE FROM transactions WHERE user_id = ?', (user_id,))
+        db.commit()
+        flash("Portfolio reset. Cash balance set to 40% of base capital.", "success")
+    except Exception as e:
+        db.rollback()
+        flash(f"Error resetting portfolio: {e}", "danger")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    finally:
+        db.close()
+    
+    return jsonify({'status': 'Portfolio reset successfully.'})
+
+# --- Stock Management Routes (Admin) ---
+@app.route('/manage_stocks')
+@login_required
+@admin_required
+def manage_stocks_page():
+    db = database.get_db()
+    stocks = db.execute('SELECT * FROM master_stocks ORDER BY symbol ASC').fetchall()
+    db.close()
+    return render_template('manage_stocks.html', stocks=stocks)
+
+@app.route('/api/add_stock', methods=['POST'])
+@login_required
+@admin_required
+def add_stock():
+    symbol = request.form.get('symbol', '').strip().upper()
+    if not symbol:
+        flash("Symbol cannot be empty.", "danger")
+        return redirect(url_for('manage_stocks_page'))
+
+    if not symbol.endswith('.NS'):
+        symbol += '.NS'
+
+    db = database.get_db()
+    try:
+        exists = db.execute('SELECT id FROM master_stocks WHERE symbol = ?', (symbol,)).fetchone()
+        if exists:
+            flash(f"Stock '{symbol}' already exists.", "warning")
+            return redirect(url_for('manage_stocks_page'))
+            
+        stock_info = yf.Ticker(symbol).info
+        if not stock_info.get('longName'):
+             flash(f"Stock '{symbol}' not found on yfinance.", "danger")
+             return redirect(url_for('manage_stocks_page'))
+
+        name = stock_info.get('longName', 'N/A')
+        industry = stock_info.get('industry', 'N/A')
+        sector = stock_info.get('sector', 'N/A')
+
+        db.execute(
+            'INSERT INTO master_stocks (symbol, name, industry, sector) VALUES (?, ?, ?, ?)',
+            (symbol, name, industry, sector)
+        )
+        db.commit()
+        flash(f"Stock '{symbol}' added successfully.", "success")
+    except Exception as e:
+        db.rollback()
+        flash(f"Error adding stock '{symbol}': {e}", "danger")
+    finally:
+        db.close()
+        
+    return redirect(url_for('manage_stocks_page'))
+
+@app.route('/api/add_stocks_bulk', methods=['POST'])
+@login_required
+@admin_required
+def add_stocks_bulk():
+    symbols_raw = ""
+    # Check for file upload first
+    if 'stock_file' in request.files and request.files['stock_file'].filename != '':
+        file = request.files['stock_file']
+        if file and file.filename.endswith('.txt'):
+            symbols_raw = file.read().decode('utf-8')
+        else:
+            flash("Invalid file type. Please upload a .txt file.", "danger")
+            return redirect(url_for('manage_stocks_page'))
+    else:
+        symbols_raw = request.form.get('symbol_list', '')
+
+    if not symbols_raw:
+        flash("No symbols provided.", "warning")
+        return redirect(url_for('manage_stocks_page'))
+
+    # Process the raw text to get a clean list of symbols
+    symbols = {s.strip().upper() for s in symbols_raw.replace(',', '\n').splitlines() if s.strip()}
+    
+    added_count = 0
+    duplicate_count = 0
+    not_found_symbols = []
+    
+    db = database.get_db()
+    try:
+        existing_symbols = {row['symbol'] for row in db.execute('SELECT symbol FROM master_stocks').fetchall()}
+        
+        for symbol in symbols:
+            if not symbol.endswith('.NS'):
+                symbol += '.NS'
+
+            if symbol in existing_symbols:
+                duplicate_count += 1
+                continue
+
+            try:
+                stock_info = yf.Ticker(symbol).info
+                if not stock_info.get('longName'):
+                    not_found_symbols.append(symbol)
+                    continue
+
+                name = stock_info.get('longName', 'N/A')
+                industry = stock_info.get('industry', 'N/A')
+                sector = stock_info.get('sector', 'N/A')
+
+                db.execute(
+                    'INSERT INTO master_stocks (symbol, name, industry, sector) VALUES (?, ?, ?, ?)',
+                    (symbol, name, industry, sector)
+                )
+                added_count += 1
+            except Exception:
+                not_found_symbols.append(symbol)
+        
+        db.commit()
+
+        # Flash summary messages
+        if added_count > 0:
+            flash(f"Successfully added {added_count} new stocks.", "success")
+        if duplicate_count > 0:
+            flash(f"Skipped {duplicate_count} stocks that already exist in the list.", "info")
+        if not_found_symbols:
+            flash(f"Could not find the following symbols on yfinance: {', '.join(not_found_symbols)}", "danger")
+
+    except Exception as e:
+        db.rollback()
+        flash(f"An error occurred during the bulk add process: {e}", "danger")
+    finally:
+        db.close()
+
+    return redirect(url_for('manage_stocks_page'))
+
+
+@app.route('/api/delete_stock', methods=['POST'])
+@login_required
+@admin_required
+def delete_stock():
+    stock_id = request.form.get('stock_id')
+    db = database.get_db()
+    try:
+        db.execute('DELETE FROM master_stocks WHERE id = ?', (stock_id,))
+        db.commit()
+        flash("Stock deleted successfully.", "success")
+    except Exception as e:
+        db.rollback()
+        flash(f"Error deleting stock: {e}", "danger")
+    finally:
+        db.close()
+    return redirect(url_for('manage_stocks_page'))
+
+@app.route('/api/download_stock_list')
+@login_required
+@admin_required
+def download_stock_list():
+    db = database.get_db()
+    stocks = db.execute('SELECT symbol, name, industry, sector FROM master_stocks ORDER BY symbol ASC').fetchall()
+    db.close()
+
+    df = pd.DataFrame([dict(row) for row in stocks])
+    
+    output = io.BytesIO()
+    writer = pd.ExcelWriter(output, engine='openpyxl')
+    df.to_excel(writer, index=False, sheet_name='Master Stock List')
+    writer.close()
+    output.seek(0)
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='master_stock_list.xlsx'
+    )
+
+# --- Screener Routes ---
+@app.route('/screener')
+@login_required
+def screener_page():
+    db = database.get_db()
+    results = db.execute('SELECT * FROM screener_results ORDER BY rank ASC').fetchall()
+    last_run = db.execute('SELECT MAX(run_date) as last_run FROM screener_results').fetchone()
+    db.close()
+    print(results)
+    last_run_date = last_run['last_run'] if last_run and last_run['last_run'] else None
+    
+    return render_template('screener.html', results=results, last_run_date=last_run_date)
+
+@app.route('/api/run_screener', methods=['POST'])
+@login_required
+@admin_required
+def run_screener_api():
+    try:
+        stock_screener.run_screener_process()
+        return jsonify({'status': 'success', 'message': 'Screener process completed successfully!'})
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'An error occurred: {e}'}), 500
+
+@app.route('/api/download_screener_results')
+@login_required
+def download_screener_results():
+    db = database.get_db()
+    results = db.execute('SELECT * FROM screener_results ORDER BY rank ASC').fetchall()
+    db.close()
+
+    df = pd.DataFrame([dict(row) for row in results])
+    
+    output = io.BytesIO()
+    writer = pd.ExcelWriter(output, engine='openpyxl')
+    df.to_excel(writer, index=False, sheet_name='Screener Results')
+    writer.close()
+    output.seek(0)
+    
+    return send_file(
+        output,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='stock_screener_results.xlsx'
+    )
+
+def execute_strategy_for_user(user_id):
+    """A dedicated function to run the trading strategy for a single user."""
     log = []
     
     def _log_message(message):
@@ -456,19 +720,20 @@ def run_strategy():
         print(full_message)
         log.append(full_message)
 
-    if not is_market_open() and current_user.role != 'admin':
-        _log_message("Market is closed.")
-        return jsonify({'status': 'error', 'log': log})
-
     db = database.get_db()
     try:
         user = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+        if not user:
+            return ["User not found."], "Error"
+
+        _log_message(f"--- Running Strategy for {user['username']} ---")
+        
         portfolio_rows = db.execute('SELECT * FROM portfolios WHERE user_id = ?', (user_id,)).fetchall()
         
         stock_list = [s.strip() for s in (user['stock_list'] or '').split(',') if s.strip()]
         if not stock_list:
             _log_message("Error: Stock list is not configured.")
-            return jsonify({'status': 'error', 'log': log})
+            return log, "Error"
 
         max_open_positions = user['max_open_positions']
         brokerage = user['brokerage_per_trade']
@@ -620,41 +885,19 @@ def run_strategy():
         db.commit()
     except Exception as e:
         db.rollback()
-        _log_message(f"CRITICAL ERROR: {e}")
+        _log_message(f"CRITICAL ERROR for {user['username']}: {e}")
+        return log, "Error"
     finally:
         db.close()
     
-    return jsonify({'status': 'Strategy execution finished.', 'log': log})
+    return log, "Strategy execution finished."
 
-
-@app.route('/api/reset', methods=['POST'])
-@login_required
-def reset_portfolio():
-    user_id = current_user.id
-    db = database.get_db()
-    try:
-        user = db.execute('SELECT base_capital FROM users WHERE id = ?', (user_id,)).fetchone()
-        if not user:
-            return jsonify({'status': 'error', 'message': 'User not found'}), 404
-
-        new_cash_balance = user['base_capital'] * 0.40
-
-        db.execute('UPDATE users SET cash_balance = ?, total_brokerage = 0 WHERE id = ?', (new_cash_balance, user_id))
-        db.execute('DELETE FROM portfolios WHERE user_id = ?', (user_id,))
-        db.execute('DELETE FROM transactions WHERE user_id = ?', (user_id,))
-        db.commit()
-        flash("Portfolio reset. Cash balance set to 40% of base capital.", "success")
-    except Exception as e:
-        db.rollback()
-        flash(f"Error resetting portfolio: {e}", "danger")
-        return jsonify({'status': 'error', 'message': str(e)}), 500
-    finally:
-        db.close()
-    
-    return jsonify({'status': 'Portfolio reset successfully.'})
-
-
-# --- Background Scheduler for P&L Updates ---
+# --- Background Schedulers ---
+def scheduled_screener_job():
+    with app.app_context():
+        print("Scheduler: Running weekly stock screener job.")
+        stock_screener.run_screener_process()
+        
 def update_live_prices():
     """Scheduled job to fetch live prices for all tickers in portfolios."""
     print("Scheduler: Running job to update live prices.")
@@ -680,17 +923,46 @@ def update_live_prices():
             else:
                 last_prices = close_prices.iloc[-1].to_dict()
 
+            print(f"Scheduler: Fetched prices: {last_prices}")
+
             for ticker, price in last_prices.items():
                 if pd.notna(price):
                     live_prices_cache[ticker] = price
-            print(f"Scheduler: Updated prices for: {list(live_prices_cache.keys())}")
+            print(f"Scheduler: Cache updated. Current cache: {live_prices_cache}")
 
         except Exception as e:
             print(f"Scheduler: Error fetching prices: {e}")
 
+def master_strategy_scheduler():
+    """The main scheduler that checks and runs strategies for all eligible users."""
+    print("Master Scheduler: Checking for users to run strategy...")
+    with app.app_context():
+        db = database.get_db()
+        users_to_run = db.execute('SELECT * FROM users WHERE auto_run_enabled = 1').fetchall()
+        db.close()
+        
+        today_weekday = datetime.now(pytz.timezone('Asia/Kolkata')).weekday() # Monday is 0, Friday is 4
+
+        for user in users_to_run:
+            should_run = False
+            if user['execution_interval'] == '1d':
+                should_run = True
+            elif user['execution_interval'] == '1wk' and today_weekday == 4: # 4 is Friday
+                should_run = True
+
+            if should_run:
+                execute_strategy_for_user(user['id'])
+
+
 if __name__ == '__main__':
     scheduler = BackgroundScheduler(daemon=True, timezone='Asia/Kolkata')
+    # P&L Updater
     scheduler.add_job(update_live_prices, 'cron', day_of_week='mon-fri', hour='9-16', minute='30')
+    # Master Strategy Runner
+    scheduler.add_job(master_strategy_scheduler, 'cron', day_of_week='mon-fri', hour=15, minute=0) # Runs at 3 PM
+    # Weekly Stock Screener
+    scheduler.add_job(scheduled_screener_job, 'cron', day_of_week='fri', hour=18, minute=0) # Friday at 6 PM
+    
     scheduler.start()
     
     with app.app_context():
