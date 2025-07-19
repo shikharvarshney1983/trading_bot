@@ -6,8 +6,10 @@ from datetime import date, timedelta, datetime
 import sqlite3
 import numpy as np
 import os
+import logging
 
 DB_PATH = os.path.join('instance', 'trading.db')
+logger = logging.getLogger(__name__)
 
 def get_nse_stocks_from_db():
     """
@@ -18,10 +20,10 @@ def get_nse_stocks_from_db():
     try:
         symbols_df = pd.read_sql_query("SELECT symbol FROM master_stocks", db)
         symbols = symbols_df['symbol'].tolist()
-        print(f"Found {len(symbols)} stocks in the master list.")
+        logger.info(f"Found {len(symbols)} stocks in the master list.")
         return symbols
     except Exception as e:
-        print(f"Error fetching stocks from database: {e}")
+        logger.error(f"Error fetching stocks from database: {e}")
         return []
     finally:
         db.close()
@@ -74,11 +76,11 @@ def get_crossover_date(data):
 
 def run_screener_process():
     """Main function to run the entire screening and ranking process."""
-    print("Starting stock screener process...")
+    logger.info("Starting stock screener process...")
     try:
         all_symbols = get_nse_stocks_from_db()
         if not all_symbols:
-            print("No stocks in master list. Aborting.")
+            logger.info("No stocks in master list. Aborting.")
             return
 
         nifty_data = yf.download('^NSEI', period='2y', interval='1wk')
@@ -89,7 +91,7 @@ def run_screener_process():
         total_stocks = len(all_symbols)
 
         for i, symbol in enumerate(all_symbols):
-            print(f"Processing {i+1}/{total_stocks}: {symbol}")
+            logger.info(f"Processing {i+1}/{total_stocks}: {symbol}")
             try:
                 data = yf.download(symbol, period='2y', interval='1wk', progress=False)
                 
@@ -151,11 +153,11 @@ def run_screener_process():
                 all_stocks_data.append(stock_data_dict)
 
             except Exception as e:
-                print(f"Could not process {symbol}: {e}")
+                logger.error(f"Could not process {symbol}: {e}")
                 continue
 
         if not all_stocks_data:
-            print("No stocks could be processed.")
+            logger.info("No stocks could be processed.")
             return
 
         df = pd.DataFrame(all_stocks_data)
@@ -209,10 +211,10 @@ def run_screener_process():
             )
         db.commit()
         db.close()
-        print(f"Screener process finished. Saved {len(df)} stocks to the database.")
+        logger.info(f"Screener process finished. Saved {len(df)} stocks to the database.")
 
     except Exception as e:
-        print(f"A critical error occurred during the screener process: {e}")
+        logger.error(f"A critical error occurred during the screener process: {e}")
 
 if __name__ == '__main__':
     run_screener_process()
