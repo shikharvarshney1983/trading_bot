@@ -8,3 +8,4 @@ yfinance
 python-dotenv
 requests
 APScheduler
+openpyxl
