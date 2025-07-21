@@ -1006,17 +1006,4 @@ def master_strategy_scheduler():
 
 
 if __name__ == '__main__':
-    scheduler = BackgroundScheduler(daemon=True, timezone='Asia/Kolkata')
-    # P&L Updater
-    scheduler.add_job(update_live_prices, 'cron', day_of_week='mon-fri', hour='9-16', minute='30')
-    # Master Strategy Runner
-    scheduler.add_job(master_strategy_scheduler, 'cron', day_of_week='mon-fri', hour=15, minute=0) # Runs at 3 PM
-    # Weekly Stock Screener
-    scheduler.add_job(scheduled_screener_job, 'cron', day_of_week='fri', hour=18, minute=0) # Friday at 6 PM
-    
-    scheduler.start()
-    
-    with app.app_context():
-        update_live_prices()
-
-    app.run(debug=True, port=5000)
+    app.run(debug=True, port=5000, use_reloader=False)
