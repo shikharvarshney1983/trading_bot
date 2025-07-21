@@ -1,10 +1,12 @@
 <!-- Chosen Palette: Classic & professional -->
-<!-- Application Structure Plan: The application is structured as a single-page interactive dashboard with a sticky top navigation bar for easy access to key analytical sections: Overview, Growth Strategy, Market Context, Valuation Modeler, and Investment Rationale. This non-linear structure was chosen to empower users (investors, analysts) to explore data in the order most relevant to them, rather than following a rigid report format. The core of the application is the 'Valuation Modeler,' which allows for direct interaction with data inputs (sliders for growth and multiples) to see real-time output on charts. This transforms the user from a passive information consumer into an active analyst, which is the primary goal for an investment analysis tool. -->
+<!-- Application Structure Plan: The application is structured as a single-page interactive dashboard with a sticky top navigation bar for easy access to key analytical sections. The 'Global Presence & Revenue Mix' section provides a clearer picture of the company's operational scale and market diversification. The 'Our Leadership' section is updated with actual photos. The 'Valuation Modeler' is enhanced with a margin slider and a rebuilt, consistent calculation engine, allowing for direct interaction with data inputs to see real-time output on charts. -->
 <!-- Visualization & Content Choices: 
 - Overview: Report Info (Company Summary, Financials) -> Goal (Inform) -> Viz (Key stat cards, Combo Bar/Line chart) -> Interaction (Hover states, tooltips) -> Justification (Provides a quick, high-level summary on landing) -> Library (Chart.js).
+- Our Leadership: Report Info (Management Details) -> Goal (Inform) -> Viz (Profile cards with actual images and text) -> Interaction (None) -> Justification (Adds qualitative depth by introducing the key decision-makers) -> Method (HTML/CSS).
+- Global Presence & Revenue Mix: Report Info (Locations, Revenue breakdown) -> Goal (Inform/Compare) -> Viz (Vertically stacked maps for better comparison, Donut charts) -> Interaction (Hover tooltips on charts) -> Justification (Visually represents the company's scale and diversification) -> Library (Chart.js).
 - Growth Strategy: Report Info (Four growth pillars) -> Goal (Organize/Inform) -> Viz (Interactive cards in a grid) -> Interaction (Click to reveal detailed text) -> Justification (Presents strategy cleanly without initial clutter) -> Method (HTML/CSS/JS).
 - Market Context: Report Info (Industry trends, Peer data) -> Goal (Compare) -> Viz (Tabbed view with a dynamic bar chart for all peers) -> Interaction (Tabs to switch content, dropdown to change chart metric) -> Justification (Allows direct, multi-metric comparison against a full peer set) -> Library (Chart.js).
-- Valuation Modeler: Report Info (Valuation cases) -> Goal (Explore relationships/change) -> Viz (Bar chart with sliders and year selector) -> Interaction (Sliders and year selector recalculate a 'Custom' scenario and update the chart in real-time with detailed tooltips) -> Justification (A powerful tool for multi-year scenario analysis) -> Library (Chart.js).
+- Valuation Modeler: Report Info (Valuation cases) -> Goal (Explore relationships/change) -> Viz (Bar chart with sliders for growth, margin, and P/E, plus a year selector) -> Interaction (Sliders and year selector recalculate all scenarios dynamically and update the chart in real-time with detailed tooltips) -> Justification (A powerful and consistent tool for multi-year scenario analysis) -> Library (Chart.js).
 - Rationale: Report Info (Thesis/Antithesis) -> Goal (Compare) -> Viz (Side-by-side lists) -> Interaction (None) -> Justification (Clear, balanced summary of pros and cons) -> Method (HTML/CSS).
 - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
 <!DOCTYPE html>
@@ -19,12 +21,15 @@
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #ecf0f1; color: #2c3e50; }
         .chart-container { position: relative; width: 100%; max-width: 700px; margin-left: auto; margin-right: auto; height: 350px; max-height: 400px; }
+        .small-chart-container { position: relative; width: 100%; max-width: 350px; margin-left: auto; margin-right: auto; height: 300px; max-height: 350px; }
         @media (max-width: 768px) { .chart-container { height: 300px; } }
         .nav-link { transition: color 0.3s, border-bottom-color 0.3s; }
         .nav-link:hover, .nav-link.active { color: #3498db; border-bottom-color: #3498db; }
         .details-content { max-height: 0; overflow: hidden; transition: max-height 0.5s ease-in-out; }
         .year-btn { background-color: #bdc3c7; color: #7f8c8d; padding: 8px 16px; border-radius: 6px; font-weight: 500; transition: all 0.3s; }
         .year-btn.active { background-color: #3498db; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .profile-card { transition: transform 0.3s, box-shadow 0.3s; }
+        .profile-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); }
     </style>
 </head>
 <body class="antialiased">
@@ -37,6 +42,8 @@
         <div class="container mx-auto px-4">
             <div class="flex justify-center space-x-4 md:space-x-8 overflow-x-auto whitespace-nowrap">
                 <a href="#overview" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Overview</a>
+                <a href="#leadership" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Our Leadership</a>
+                <a href="#presence" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Global Presence</a>
                 <a href="#growth-strategy" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Growth Strategy</a>
                 <a href="#market-context" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Market Context</a>
                 <a href="#valuation-modeler" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Valuation Modeler</a>
@@ -69,6 +76,63 @@
                     <h3 class="text-xl font-semibold mb-3">Historical Performance</h3>
                     <div class="chart-container">
                         <canvas id="financialsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="leadership" class="mb-12 scroll-mt-32">
+            <h2 class="text-3xl font-bold text-[#2c3e50] mb-2">Our Leadership</h2>
+            <p class="text-[#34495e] mb-6">Meet the experienced leadership team guiding TCPL's strategic vision and operational excellence.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                <div class="profile-card bg-white p-6 rounded-lg shadow-md text-center">
+                    <img src="https://www.tcpl.in/wp-content/uploads/2025/05/Saket-Kanoria-copy.jpg" alt="Saket Kanoria" class="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-white shadow-lg object-cover" onerror="this.onerror=null;this.src='https://placehold.co/150x150/3498db/ffffff?text=SK';">
+                    <h3 class="text-xl font-bold text-[#2c3e50]">Saket Kanoria</h3>
+                    <p class="text-md text-[#3498db] font-semibold">Managing Director</p>
+                    <p class="text-sm text-gray-600 mt-3 leading-relaxed">With over 30 years at the helm, Mr. Saket Kanoria provides strategic consistency and deep industry expertise. His long-term vision has been instrumental in building TCPL into a market leader and fostering robust, long-standing client relationships.</p>
+                </div>
+                <div class="profile-card bg-white p-6 rounded-lg shadow-md text-center">
+                    <img src="https://www.tcpl.in/wp-content/uploads/2025/05/Akshay-Kanoria-copy-297x300.jpg" alt="Akshay Kanoria" class="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-white shadow-lg object-cover" onerror="this.onerror=null;this.src='https://placehold.co/150x150/2ecc71/ffffff?text=AK';">
+                    <h3 class="text-xl font-bold text-[#2c3e50]">Akshay Kanoria</h3>
+                    <p class="text-md text-[#2ecc71] font-semibold">Executive Director</p>
+                    <p class="text-sm text-gray-600 mt-3 leading-relaxed">Mr. Akshay Kanoria brings a dynamic approach, spearheading the company's crucial export initiatives. His focus on international markets has been a key growth engine, diversifying revenue streams and capturing global opportunities.</p>
+                </div>
+                <div class="profile-card bg-white p-6 rounded-lg shadow-md text-center">
+                    <img src="https://www.tcpl.in/wp-content/uploads/2025/05/Vidur_Kanoria-May_2023_copy-removebg-preview-208x300.png" alt="Vidur Kanoria" class="w-32 h-32 rounded-full mx-auto mb-4 border-4 border-white shadow-lg object-cover" onerror="this.onerror=null;this.src='https://placehold.co/150x150/e74c3c/ffffff?text=VK';">
+                    <h3 class="text-xl font-bold text-[#2c3e50]">Vidur Kanoria</h3>
+                    <p class="text-md text-[#e74c3c] font-semibold">Executive Director</p>
+                    <p class="text-sm text-gray-600 mt-3 leading-relaxed">Mr. Vidur Kanoria is instrumental in driving new projects and operational improvements. He plays a vital role in the execution of key strategic initiatives, including the setup of new manufacturing facilities and technology adoption.</p>
+                </div>
+            </div>
+        </section>
+        
+        <section id="presence" class="mb-12 scroll-mt-32">
+            <h2 class="text-3xl font-bold text-[#2c3e50] mb-2">Global Presence & Revenue Mix</h2>
+            <p class="text-[#34495e] mb-6">Explore TCPL's manufacturing footprint, international reach, and how its revenue is diversified across products and regions.</p>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="grid grid-cols-1 gap-12 mb-8">
+                    <div class="text-center">
+                        <h3 class="text-xl font-semibold mb-3">Pan-India Manufacturing Footprint</h3>
+                        <img src="https://www.tcpl.in/wp-content/uploads/2025/05/Factory-Map-1.png" alt="TCPL Manufacturing locations in India" class="rounded-lg shadow-sm mx-auto max-w-2xl w-full" onerror="this.onerror=null;this.src='https://placehold.co/800x400/cccccc/333333?text=Manufacturing+Map';">
+                    </div>
+                    <div class="text-center">
+                        <h3 class="text-xl font-semibold mb-3">Expanding Global Exports</h3>
+                        <img src="https://www.tcpl.in/wp-content/uploads/2025/05/world-color-map_26.07.2024--2048x1145.png" alt="TCPL Global export markets" class="rounded-lg shadow-sm mx-auto max-w-2xl w-full" onerror="this.onerror=null;this.src='https://placehold.co/800x400/cccccc/333333?text=Export+Map';">
+                    </div>
+                </div>
+                <hr class="my-8 border-gray-300">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div class="text-center">
+                        <h3 class="text-xl font-semibold mb-3">Revenue by Product (FY25)</h3>
+                        <div class="small-chart-container">
+                            <canvas id="productMixChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <h3 class="text-xl font-semibold mb-3">Revenue by Region (FY25)</h3>
+                        <div class="small-chart-container">
+                            <canvas id="regionMixChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -182,12 +246,16 @@
                             <input id="sales-growth-slider" type="range" min="10" max="22" value="15" step="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
                         </div>
                         <div>
+                            <label for="margin-slider" class="block font-semibold mb-1">Projected EBITDA Margin: <span id="margin-value" class="font-bold text-[#3498db]">17.0%</span></label>
+                            <input id="margin-slider" type="range" min="14" max="19" value="17" step="0.5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div>
                             <label for="pe-multiple-slider" class="block font-semibold mb-1">Target P/E Multiple: <span id="pe-multiple-value" class="font-bold text-[#3498db]">22x</span></label>
                             <input id="pe-multiple-slider" type="range" min="14" max="28" value="22" step="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
                         </div>
                         <div class="bg-gray-100 p-4 rounded-lg text-center">
                             <div id="custom-valuation-title" class="text-gray-600">Your Custom Projected Price (FY26)</div>
-                            <div id="custom-valuation-output" class="text-3xl font-bold text-[#2c3e50] mt-1">₹4378</div>
+                            <div id="custom-valuation-output" class="text-3xl font-bold text-[#2c3e50] mt-1">₹3371</div>
                         </div>
                     </div>
                 </div>
@@ -350,22 +418,10 @@
             peerChart.update();
         });
 
-        const valuationData = {
-            '26': {
-                bear: { price: 3276, growth: '10%', margin: '15.0%', pe: '18x' },
-                base: { price: 4378, growth: '15%', margin: '16.8%', pe: '22x' },
-                bull: { price: 5913, growth: '20%', margin: '18.0%', pe: '27x' },
-            },
-            '27': {
-                bear: { price: 3600, growth: '10%', margin: '15.0%', pe: '18x' },
-                base: { price: 5038, growth: '15%', margin: '16.8%', pe: '22x' },
-                bull: { price: 7101, growth: '20%', margin: '18.0%', pe: '27x' },
-            },
-            '28': {
-                bear: { price: 3960, growth: '10%', margin: '15.0%', pe: '18x' },
-                base: { price: 5786, growth: '15%', margin: '16.8%', pe: '22x' },
-                bull: { price: 8505, growth: '20%', margin: '18.0%', pe: '27x' },
-            }
+        const valuationAssumptions = {
+            bear: { growth: 10, margin: 15.0, pe: 18 },
+            base: { growth: 15, margin: 16.8, pe: 22 },
+            bull: { growth: 20, margin: 18.0, pe: 27 },
         };
         let customValuationCache = {};
 
@@ -389,7 +445,7 @@
                     tooltip: {
                         callbacks: {
                             label: function(context) {
-                                let mainLabel = `Price: ₹${context.parsed.y}`;
+                                let mainLabel = `Price: ₹${context.parsed.y.toFixed(0)}`;
                                 const scenario = context.label.toLowerCase().replace(' ', '');
                                 const year = document.querySelector('.year-btn.active').dataset.year;
                                 
@@ -397,7 +453,12 @@
                                 if (scenario === 'yourscenario') {
                                     details = customValuationCache[year];
                                 } else {
-                                    details = valuationData[year][scenario];
+                                    const assumptions = valuationAssumptions[scenario];
+                                    details = {
+                                        growth: `${assumptions.growth}%`,
+                                        margin: `${assumptions.margin.toFixed(1)}%`,
+                                        pe: `${assumptions.pe}x`
+                                    };
                                 }
 
                                 if (details) {
@@ -412,50 +473,58 @@
         });
 
         const salesSlider = document.getElementById('sales-growth-slider');
+        const marginSlider = document.getElementById('margin-slider');
         const peSlider = document.getElementById('pe-multiple-slider');
         const salesValue = document.getElementById('sales-growth-value');
+        const marginValue = document.getElementById('margin-value');
         const peValue = document.getElementById('pe-multiple-value');
         const customValuationOutput = document.getElementById('custom-valuation-output');
         const customValuationTitle = document.getElementById('custom-valuation-title');
         const yearSelector = document.getElementById('year-selector');
 
-        function updateValuationChart(year) {
-            const yearData = valuationData[year];
-            const customPrice = calculateCustomValuation(year);
-            valuationChart.data.datasets[0].data = [
-                yearData.bear.price,
-                yearData.base.price,
-                yearData.bull.price,
-                customPrice
-            ];
-            valuationChart.options.scales.y.title.text = `Projected Price (FY${year})`;
-            valuationChart.update();
-        }
-        
-        function calculateCustomValuation(year){
-            const salesCAGR = parseFloat(salesSlider.value);
-            const peMultiple = parseFloat(peSlider.value);
+        function calculatePrice(year, salesCAGR, ebitdaMargin, peMultiple) {
             const yearsToProject = parseInt(year) - 25;
+            const baseRevenue = 1770; // FY25 Revenue
+            
+            const projectedRevenue = baseRevenue * Math.pow(1 + (salesCAGR / 100), yearsToProject);
+            const projectedEBITDA = projectedRevenue * (ebitdaMargin / 100);
+            
+            const depreciationAndInterest = projectedRevenue * 0.085; 
+            const pbt = projectedEBITDA - depreciationAndInterest;
+            const tax = pbt * 0.25; 
+            const pat = pbt - tax;
+            const sharesOutstanding = 9.1; 
+            const projectedEPS = (pat / sharesOutstanding) * 10; 
 
-            salesValue.textContent = `${salesCAGR}%`;
-            peValue.textContent = `${peMultiple}x`;
+            return projectedEPS * peMultiple;
+        }
 
-            const currentEPS = 157.16; // FY25 EPS
-            const patGrowthRate = (salesCAGR / 100) * 1.1; // Assuming PAT grows 1.1x sales growth
+        function updateValuationChart(year) {
+            const customGrowth = parseFloat(salesSlider.value);
+            const customMargin = parseFloat(marginSlider.value);
+            const customPE = parseFloat(peSlider.value);
 
-            const projectedEPS = currentEPS * Math.pow(1 + patGrowthRate, yearsToProject);
-            const customPrice = projectedEPS * peMultiple;
+            salesValue.textContent = `${customGrowth}%`;
+            marginValue.textContent = `${customMargin.toFixed(1)}%`;
+            peValue.textContent = `${customPE}x`;
 
+            const bearPrice = calculatePrice(year, valuationAssumptions.bear.growth, valuationAssumptions.bear.margin, valuationAssumptions.bear.pe);
+            const basePrice = calculatePrice(year, valuationAssumptions.base.growth, valuationAssumptions.base.margin, valuationAssumptions.base.pe);
+            const bullPrice = calculatePrice(year, valuationAssumptions.bull.growth, valuationAssumptions.bull.margin, valuationAssumptions.bull.pe);
+            const customPrice = calculatePrice(year, customGrowth, customMargin, customPE);
+            
             customValuationTitle.textContent = `Your Custom Projected Price (FY${year})`;
             customValuationOutput.textContent = `₹${customPrice.toFixed(0)}`;
             
             customValuationCache[year] = {
-                price: customPrice.toFixed(0),
-                growth: `${salesCAGR}%`,
-                margin: 'Custom',
-                pe: `${peMultiple}x`
+                growth: `${customGrowth}%`,
+                margin: `${customMargin.toFixed(1)}%`,
+                pe: `${customPE}x`
             };
-            return customPrice;
+
+            valuationChart.data.datasets[0].data = [bearPrice, basePrice, bullPrice, customPrice];
+            valuationChart.options.scales.y.title.text = `Projected Price (FY${year})`;
+            valuationChart.update();
         }
 
         yearSelector.addEventListener('click', (e) => {
@@ -466,13 +535,12 @@
             }
         });
 
-        salesSlider.addEventListener('input', () => {
-            const activeYear = yearSelector.querySelector('.active').dataset.year;
-            updateValuationChart(activeYear);
-        });
-        peSlider.addEventListener('input', () => {
-            const activeYear = yearSelector.querySelector('.active').dataset.year;
-            updateValuationChart(activeYear);
+        const sliders = [salesSlider, marginSlider, peSlider];
+        sliders.forEach(slider => {
+            slider.addEventListener('input', () => {
+                const activeYear = yearSelector.querySelector('.active').dataset.year;
+                updateValuationChart(activeYear);
+            });
         });
 
         updateValuationChart('26');
@@ -495,6 +563,45 @@
                 }
             });
         });
+
+        const productMixCtx = document.getElementById('productMixChart').getContext('2d');
+        new Chart(productMixCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Folding Cartons', 'Flexible Packaging', 'Rigid & Other'],
+                datasets: [{
+                    data: [70, 25, 5],
+                    backgroundColor: ['#3498db', '#2ecc71', '#95a5a6'],
+                    borderColor: '#ecf0f1',
+                    borderWidth: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+        
+        const regionMixCtx = document.getElementById('regionMixChart').getContext('2d');
+        new Chart(regionMixCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Domestic', 'Exports'],
+                datasets: [{
+                    data: [65, 35],
+                    backgroundColor: ['#34495e', '#e74c3c'],
+                    borderColor: '#ecf0f1',
+                    borderWidth: 4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
     });
 </script>
 
