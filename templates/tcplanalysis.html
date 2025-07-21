@@ -1,20 +1,21 @@
 <!-- Chosen Palette: Classic & professional -->
-<!-- Application Structure Plan: The application is structured as a single-page interactive dashboard with a sticky top navigation bar for easy access to key analytical sections. The 'Global Presence & Revenue Mix' section provides a clearer picture of the company's operational scale and market diversification. The 'Our Leadership' section is updated with actual photos. The 'Valuation Modeler' is enhanced with a margin slider and a rebuilt, consistent calculation engine, allowing for direct interaction with data inputs to see real-time output on charts. -->
+<!-- Application Structure Plan: The application is structured as a single-page interactive dashboard with a sticky top navigation bar for easy access to key analytical sections. The 'Overview' section now includes an embedded video for a dynamic introduction. 'Historical Performance' is now a dedicated section. The 'Our Leadership' section is updated with actual photos. The 'Valuation Modeler' is enhanced with a margin slider and a rebuilt, consistent calculation engine, allowing for direct interaction with data inputs to see real-time output on charts. -->
 <!-- Visualization & Content Choices: 
-- Overview: Report Info (Company Summary, Financials) -> Goal (Inform) -> Viz (Key stat cards, Combo Bar/Line chart) -> Interaction (Hover states, tooltips) -> Justification (Provides a quick, high-level summary on landing) -> Library (Chart.js).
-- Our Leadership: Report Info (Management Details) -> Goal (Inform) -> Viz (Profile cards with actual images and text) -> Interaction (None) -> Justification (Adds qualitative depth by introducing the key decision-makers) -> Method (HTML/CSS).
+- Overview: Report Info (Company Summary, Video) -> Goal (Inform) -> Viz (Key stat cards, Embedded Video) -> Interaction (Video controls) -> Justification (Provides a more engaging, high-level summary on landing) -> Method (HTML/CSS).
+- Leadership: Report Info (Management Details) -> Goal (Inform) -> Viz (Profile cards with actual images and text) -> Interaction (None) -> Justification (Adds qualitative depth by introducing the key decision-makers) -> Method (HTML/CSS).
 - Global Presence & Revenue Mix: Report Info (Locations, Revenue breakdown) -> Goal (Inform/Compare) -> Viz (Vertically stacked maps for better comparison, Donut charts) -> Interaction (Hover tooltips on charts) -> Justification (Visually represents the company's scale and diversification) -> Library (Chart.js).
 - Growth Strategy: Report Info (Four growth pillars) -> Goal (Organize/Inform) -> Viz (Interactive cards in a grid) -> Interaction (Click to reveal detailed text) -> Justification (Presents strategy cleanly without initial clutter) -> Method (HTML/CSS/JS).
 - Market Context: Report Info (Industry trends, Peer data) -> Goal (Compare) -> Viz (Tabbed view with a dynamic bar chart for all peers) -> Interaction (Tabs to switch content, dropdown to change chart metric) -> Justification (Allows direct, multi-metric comparison against a full peer set) -> Library (Chart.js).
+- Historical Performance: Report Info (Financials) -> Goal (Inform) -> Viz (Combo Bar/Line chart) -> Interaction (Hover states, tooltips) -> Justification (Dedicated section for detailed financial trend analysis) -> Library (Chart.js).
 - Valuation Modeler: Report Info (Valuation cases) -> Goal (Explore relationships/change) -> Viz (Bar chart with sliders for growth, margin, and P/E, plus a year selector) -> Interaction (Sliders and year selector recalculate all scenarios dynamically and update the chart in real-time with detailed tooltips) -> Justification (A powerful and consistent tool for multi-year scenario analysis) -> Library (Chart.js).
-- Rationale: Report Info (Thesis/Antithesis) -> Goal (Compare) -> Viz (Side-by-side lists) -> Interaction (None) -> Justification (Clear, balanced summary of pros and cons) -> Method (HTML/CSS).
+- Rationale: Report Info (Thesis/Antithesis) -> Goal (Compare) -> Viz (Side-by-side lists with varied icons) -> Interaction (Subtle hover effects) -> Justification (Clear, balanced summary of pros and cons with enhanced visual appeal) -> Method (HTML/CSS).
 - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
 <!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TCPL Packaging - Interactive Investment Analysis</title>
+    <title>TCPL Packaging - Investment Analysis</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -30,22 +31,25 @@
         .year-btn.active { background-color: #3498db; color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .profile-card { transition: transform 0.3s, box-shadow 0.3s; }
         .profile-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); }
+        .rationale-item { transition: background-color 0.3s; }
+        .rationale-item:hover { background-color: #f8f9f9; }
     </style>
 </head>
 <body class="antialiased">
 
     <header class="bg-[#2c3e50] text-white p-4 text-center sticky top-0 z-50 shadow-lg">
-        <h1 class="text-2xl md:text-3xl font-bold">TCPL Packaging Ltd. Interactive Analysis</h1>
+        <h1 class="text-2xl md:text-3xl font-bold">TCPL Packaging Ltd. Investment Analysis</h1>
     </header>
 
     <nav class="bg-white shadow-md sticky top-[68px] md:top-[76px] z-40">
         <div class="container mx-auto px-4">
             <div class="flex justify-center space-x-4 md:space-x-8 overflow-x-auto whitespace-nowrap">
                 <a href="#overview" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Overview</a>
-                <a href="#leadership" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Our Leadership</a>
+                <a href="#leadership" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Leadership</a>
                 <a href="#presence" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Global Presence</a>
                 <a href="#growth-strategy" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Growth Strategy</a>
                 <a href="#market-context" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Market Context</a>
+                <a href="#historical-performance" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Performance</a>
                 <a href="#valuation-modeler" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Valuation Modeler</a>
                 <a href="#rationale" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Rationale</a>
             </div>
@@ -72,17 +76,16 @@
                         </div>
                     </div>
                 </div>
-                <div class="lg:col-span-3 bg-white p-6 rounded-lg shadow-md">
-                    <h3 class="text-xl font-semibold mb-3">Historical Performance</h3>
-                    <div class="chart-container">
-                        <canvas id="financialsChart"></canvas>
+                <div class="lg:col-span-3 bg-white p-6 rounded-lg shadow-md flex items-center justify-center">
+                    <div class="w-full aspect-video">
+                        <iframe class="w-full h-full rounded-lg" src="https://www.youtube.com/embed/h9ugCgDkMkA" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
                     </div>
                 </div>
             </div>
         </section>
 
         <section id="leadership" class="mb-12 scroll-mt-32">
-            <h2 class="text-3xl font-bold text-[#2c3e50] mb-2">Our Leadership</h2>
+            <h2 class="text-3xl font-bold text-[#2c3e50] mb-2">Leadership</h2>
             <p class="text-[#34495e] mb-6">Meet the experienced leadership team guiding TCPL's strategic vision and operational excellence.</p>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <div class="profile-card bg-white p-6 rounded-lg shadow-md text-center">
@@ -139,7 +142,7 @@
         </section>
 
         <section id="growth-strategy" class="mb-12 scroll-mt-32">
-            <h2 class="text-3xl font-bold text-[#2c3e50] mb-2">Interactive Growth Strategy</h2>
+            <h2 class="text-3xl font-bold text-[#2c3e50] mb-2">Growth Strategy</h2>
             <p class="text-[#34495e] mb-6">TCPL's long-term growth is built on four key pillars. Click on each pillar to explore the specific strategic initiatives.</p>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div class="growth-card bg-white p-6 rounded-lg shadow-md cursor-pointer hover:shadow-xl transition-shadow duration-300" data-target="details-sales">
@@ -225,8 +228,18 @@
             </div>
         </section>
 
+        <section id="historical-performance" class="mb-12 scroll-mt-32">
+            <h2 class="text-3xl font-bold text-[#2c3e50] mb-2">Historical Performance</h2>
+            <p class="text-[#34495e] mb-6">A detailed look at TCPL's financial trends over the last five fiscal years, highlighting revenue growth, profitability, and margin evolution.</p>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="chart-container">
+                    <canvas id="financialsChart2"></canvas>
+                </div>
+            </div>
+        </section>
+
         <section id="valuation-modeler" class="mb-12 scroll-mt-32">
-            <h2 class="text-3xl font-bold text-[#2c3e50] mb-2">Interactive Valuation Modeler</h2>
+            <h2 class="text-3xl font-bold text-[#2c3e50] mb-2">Valuation Modeler</h2>
             <p class="text-[#34495e] mb-6">Use the controls to model valuation scenarios. Select a target year, then adjust your assumptions using the sliders to see a custom projection.</p>
             <div class="bg-white p-6 rounded-lg shadow-md">
                  <div class="flex justify-center space-x-2 md:space-x-4 mb-6" id="year-selector">
@@ -268,20 +281,22 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div class="bg-white p-6 rounded-lg shadow-md">
                     <h3 class="text-2xl font-semibold text-green-600 mb-4">Investment Thesis (Pros)</h3>
-                    <ul class="space-y-4">
-                        <li class="flex items-start"><span class="text-2xl mr-3">👍</span><div><strong>Market Leadership:</strong> A dominant player in a structurally growing industry with significant barriers to entry.</div></li>
-                        <li class="flex items-start"><span class="text-2xl mr-3">👍</span><div><strong>Visible Growth Path:</strong> Clear growth levers from capacity expansion, new product segments, and export opportunities.</div></li>
-                        <li class="flex items-start"><span class="text-2xl mr-3">👍</span><div><strong>Strong Financials:</strong> Continuously improving return ratios (RoCE) and margins driven by scale and efficiency.</div></li>
-                        <li class="flex items-start"><span class="text-2xl mr-3">👍</span><div><strong>Attractive Valuation:</strong> Currently trades at a discount to peers, offering a potential valuation re-rating opportunity.</div></li>
+                    <ul class="space-y-3">
+                        <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🌱</span><div><strong>Sustainability Leadership:</strong> First-mover advantage in recyclable packaging (MDO-PE tech) commanding premium pricing.</div></li>
+                        <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🏗️</span><div><strong>Beneficiary of Consolidation:</strong> Capturing market share as the industry shifts from unorganized to organized players.</div></li>
+                        <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🚀</span><div><strong>Export Growth Engine:</strong> Strong 31.5% CAGR in exports, benefiting from global China+1 supply chain diversification.</div></li>
+                        <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">💡</span><div><strong>Technology-Driven Margins:</strong> High-end European machinery and backward integration into rigid boxes and films to boost profitability.</div></li>
+                        <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">💰</span><div><strong>Strong Financial Trajectory:</strong> Consistent 18.5% 5-year revenue CAGR with improving ROE and a deleveraging balance sheet.</div></li>
                     </ul>
                 </div>
                  <div class="bg-white p-6 rounded-lg shadow-md">
                     <h3 class="text-2xl font-semibold text-red-600 mb-4">Antithesis (Risks)</h3>
-                    <ul class="space-y-4">
-                        <li class="flex items-start"><span class="text-2xl mr-3">👎</span><div><strong>Input Cost Volatility:</strong> Margins can be sensitive to fluctuations in global paperboard prices.</div></li>
-                        <li class="flex items-start"><span class="text-2xl mr-3">👎</span><div><strong>Client Concentration:</strong> Significant revenue portion comes from a few large FMCG clients.</div></li>
-                        <li class="flex items-start"><span class="text-2xl mr-3">👎</span><div><strong>Execution & Competition:</strong> Risk of delays in new projects and increasing competition from other organized players.</div></li>
-                        <li class="flex items-start"><span class="text-2xl mr-3">👎</span><div><strong>Macroeconomic Headwinds:</strong> A broad economic slowdown could temper consumer demand and impact volumes.</div></li>
+                    <ul class="space-y-3">
+                        <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🧱</span><div><strong>High Capital Intensity:</strong> Significant ongoing capex and an inefficient working capital cycle could strain cash flows.</div></li>
+                        <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🎢</span><div><strong>Cyclical Industry Exposure:</strong> Heavy dependence on FMCG and tobacco sectors makes the company vulnerable to consumption slowdowns.</div></li>
+                        <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">⚔️</span><div><strong>Competitive Pressure:</strong> Intense competition from organized and unorganized players may constrain pricing power and margins.</div></li>
+                        <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">⚖️</span><div><strong>Valuation Concerns:</strong> Trading at a premium to the industry median, suggesting high growth expectations are already priced in.</div></li>
+                        <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🔄</span><div><strong>Technology Transition Risks:</strong> Investments in new sustainable tech face risks of slow market adoption or obsolescence.</div></li>
                     </ul>
                 </div>
             </div>
@@ -295,61 +310,67 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const financialsCtx = document.getElementById('financialsChart').getContext('2d');
-        new Chart(financialsCtx, {
-            type: 'bar',
-            data: {
-                labels: ['FY21', 'FY22', 'FY23', 'FY24', 'FY25 (E)'],
-                datasets: [
-                    {
-                        label: 'Revenue (₹ Cr)',
-                        data: [904, 1086, 1475, 1541, 1770],
-                        backgroundColor: '#34495e',
-                        yAxisID: 'y_revenue',
-                        order: 2
-                    },
-                    {
-                        label: 'PAT (₹ Cr)',
-                        data: [33, 47, 110, 99, 143],
-                        backgroundColor: '#f1c40f',
-                        yAxisID: 'y_pat_margin',
-                        order: 2
-                    },
-                    {
-                        type: 'line',
-                        label: 'EBITDA Margin (%)',
-                        data: [15.1, 14.5, 16.7, 16.3, 16.6],
-                        borderColor: '#e74c3c',
-                        backgroundColor: '#e74c3c',
-                        yAxisID: 'y_pat_margin',
-                        tension: 0.2,
-                        order: 1
-                    }
-                ]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                scales: {
-                    y_revenue: {
-                        type: 'linear',
-                        display: true,
-                        position: 'left',
-                        title: { display: true, text: 'Revenue (₹ Cr)' }
-                    },
-                    y_pat_margin: {
-                        type: 'linear',
-                        display: true,
-                        position: 'right',
-                        grid: { drawOnChartArea: false },
-                        title: { display: true, text: 'PAT (₹ Cr) & Margin (%)' }
-                    }
+        const financialsData = {
+            labels: ['FY21', 'FY22', 'FY23', 'FY24', 'FY25 (E)'],
+            datasets: [
+                {
+                    label: 'Revenue (₹ Cr)',
+                    data: [904, 1086, 1475, 1541, 1770],
+                    backgroundColor: '#34495e',
+                    yAxisID: 'y_revenue',
+                    order: 2
                 },
-                plugins: {
-                    tooltip: { mode: 'index', intersect: false }
+                {
+                    label: 'PAT (₹ Cr)',
+                    data: [33, 47, 110, 99, 143],
+                    backgroundColor: '#f1c40f',
+                    yAxisID: 'y_pat_margin',
+                    order: 2
+                },
+                {
+                    type: 'line',
+                    label: 'EBITDA Margin (%)',
+                    data: [15.1, 14.5, 16.7, 16.3, 16.6],
+                    borderColor: '#e74c3c',
+                    backgroundColor: '#e74c3c',
+                    yAxisID: 'y_pat_margin',
+                    tension: 0.2,
+                    order: 1
                 }
+            ]
+        };
+
+        const financialsOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y_revenue: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: { display: true, text: 'Revenue (₹ Cr)' }
+                },
+                y_pat_margin: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    grid: { drawOnChartArea: false },
+                    title: { display: true, text: 'PAT (₹ Cr) & Margin (%)' }
+                }
+            },
+            plugins: {
+                tooltip: { mode: 'index', intersect: false }
             }
-        });
+        };
+        
+        // This chart is now removed from the overview section
+        // const financialsCtx = document.getElementById('financialsChart').getContext('2d');
+        // new Chart(financialsCtx, { type: 'bar', data: financialsData, options: financialsOptions });
+        
+        // New chart for the dedicated historical performance section
+        const financialsCtx2 = document.getElementById('financialsChart2').getContext('2d');
+        new Chart(financialsCtx2, { type: 'bar', data: financialsData, options: financialsOptions });
+
 
         const growthCards = document.querySelectorAll('.growth-card');
         growthCards.forEach(card => {
