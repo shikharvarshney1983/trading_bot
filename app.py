@@ -149,6 +149,10 @@ def logout():
     flash("You have been logged out.", "info")
     return redirect(url_for('login'))
 
+@app.route('/tcpl')
+def tcpl():
+    return render_template('tcplanalysis.html')
+
 # --- Admin Routes ---
 @app.route('/admin')
 @login_required
@@ -273,6 +277,7 @@ def get_status():
         app.logger.info(f"get_status: Fetching live prices for {tickers_to_fetch_now}")
         try:
             live_data = yf.download(tickers_to_fetch_now, period='1d', progress=False)
+            print(live_data)
             if not live_data.empty:
                 close_prices = live_data['Close']
                 if isinstance(close_prices, pd.Series):
@@ -1006,4 +1011,5 @@ def master_strategy_scheduler():
 
 
 if __name__ == '__main__':
+
     app.run(debug=True, port=5000, use_reloader=False)
