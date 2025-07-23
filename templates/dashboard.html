@@ -230,7 +230,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let calendarDate = new Date();
     let dailyPnlData = {};
 
-    function updateDashboard(data) {
+    function updateDashboardUI(data) {
         // Stats
         document.getElementById('stat-portfolio-value').innerHTML = formatCurrency(data.stats.portfolio_value);
         document.getElementById('stat-unrealized-pnl').innerHTML = `<span class="${pnlColor(data.stats.unrealized_pnl)}">${formatCurrency(data.stats.unrealized_pnl)}</span>`;
@@ -238,6 +238,9 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('stat-win-ratio').innerHTML = `${data.stats.win_ratio.toFixed(2)}%`;
         document.getElementById('stat-avg-win').innerHTML = `<span class="text-success">${formatCurrency(data.stats.avg_win)}</span>`;
         document.getElementById('stat-avg-loss').innerHTML = `<span class="text-danger">${formatCurrency(data.stats.avg_loss)}</span>`;
+        
+        // Update cash balance in the account section
+        document.getElementById('cashBalance').textContent = formatCurrency(data.stats.cash_balance);
 
         // Portfolio
         const portfolioBody = document.getElementById('portfolioBody');
@@ -282,19 +285,18 @@ document.addEventListener('DOMContentLoaded', function() {
         // P&L Calendar Data
         dailyPnlData = data.calendar_pnl;
         renderCalendar();
+    }
 
+    function updateSettingsUI(settings) {
         // Populate Settings Tab
-        document.getElementById('cashBalance').textContent = formatCurrency(data.settings.cash_balance);
-        document.getElementById('baseCapital').value = data.settings.base_capital;
-        document.getElementById('brokerage').value = data.settings.brokerage_per_trade;
-        document.getElementById('maxPositions').value = data.settings.max_open_positions;
-        document.getElementById('stockList').value = data.settings.stock_list || '';
-        document.getElementById('tranches').value = JSON.stringify(JSON.parse(data.settings.tranche_sizes || '{}'), null, 2);
-        document.querySelector(`input[name="interval"][value="${data.settings.execution_interval}"]`).checked = true;
-        document.getElementById('telegramChatId').value = data.settings.telegram_chat_id || '';
-        
-        // Schedule settings
-        document.getElementById('autoRunEnabled').checked = data.settings.auto_run_enabled;
+        document.getElementById('baseCapital').value = settings.base_capital;
+        document.getElementById('brokerage').value = settings.brokerage_per_trade;
+        document.getElementById('maxPositions').value = settings.max_open_positions;
+        document.getElementById('stockList').value = settings.stock_list || '';
+        document.getElementById('tranches').value = JSON.stringify(JSON.parse(settings.tranche_sizes || '{}'), null, 2);
+        document.querySelector(`input[name="interval"][value="${settings.execution_interval}"]`).checked = true;
+        document.getElementById('telegramChatId').value = settings.telegram_chat_id || '';
+        document.getElementById('autoRunEnabled').checked = settings.auto_run_enabled;
     }
 
     function renderCalendar() {
@@ -330,12 +332,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    function fetchAndUpdate() {
-        fetch('/api/status').then(res => res.json()).then(data => {
-            updateDashboard(data);
-        });
-    }
-
     document.getElementById('prev-month').addEventListener('click', () => {
         calendarDate.setMonth(calendarDate.getMonth() - 1);
         renderCalendar();
@@ -382,7 +378,7 @@ document.addEventListener('DOMContentLoaded', function() {
             body: JSON.stringify({ amount })
         }).then(res => res.json()).then(data => {
             alert(data.message);
-            fetchAndUpdate();
+            fetchDynamicData();
         });
     });
 
@@ -421,7 +417,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(res => res.json())
         .then(data => {
             document.getElementById('logContainer').textContent = data.log.join('\n');
-            fetchAndUpdate();
+            fetchDynamicData();
         });
     });
 
@@ -431,15 +427,28 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(res => res.json())
             .then(data => {
                 alert(data.status);
-                fetchAndUpdate();
+                fetchDynamicData();
             });
         }
     });
 
-    // Initial Load
-    fetchAndUpdate();
-    
-    setInterval(fetchAndUpdate, 10000);
+    // --- Data Fetching ---
+    function initialLoad() {
+        fetch('/api/status').then(res => res.json()).then(data => {
+            updateDashboardUI(data);
+            updateSettingsUI(data.settings);
+        });
+    }
+
+    function fetchDynamicData() {
+        fetch('/api/dynamic_data').then(res => res.json()).then(data => {
+            updateDashboardUI(data);
+        });
+    }
+
+    // Initial Load and set interval for dynamic data
+    initialLoad();
+    setInterval(fetchDynamicData, 10000);
 });
 </script>
 {% endblock %}
