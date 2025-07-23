@@ -3,6 +3,14 @@
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS portfolios;
 DROP TABLE IF EXISTS transactions;
+DROP TABLE IF EXISTS sqlite_sequence;
+DROP TABLE IF EXISTS master_stocks;
+DROP TABLE IF EXISTS app_state;
+DROP TABLE IF EXISTS screener_results; 
+-- Create the necessary tables for the trading bot application
+
+CREATE TABLE sqlite_sequence(name,seq);
+INSERT INTO app_state (key, value) VALUES ('screener_status', 'idle');
 
 CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -22,8 +30,7 @@ CREATE TABLE users (
     brokerage_per_trade REAL NOT NULL DEFAULT 25.0,
     max_open_positions INTEGER NOT NULL DEFAULT 15,
     tranche_sizes TEXT
-);
-
+, auto_run_enabled BOOLEAN NOT NULL DEFAULT 0, auto_run_day INTEGER);
 CREATE TABLE portfolios (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
@@ -36,7 +43,6 @@ CREATE TABLE portfolios (
     FOREIGN KEY (user_id) REFERENCES users (id),
     UNIQUE (user_id, ticker)
 );
-
 CREATE TABLE transactions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
@@ -47,4 +53,35 @@ CREATE TABLE transactions (
     price REAL NOT NULL,
     value REAL NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users (id)
+);
+CREATE TABLE master_stocks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    symbol TEXT UNIQUE NOT NULL,
+                    name TEXT,
+                    industry TEXT,
+                    sector TEXT,
+                    date_added TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+CREATE TABLE IF NOT EXISTS "screener_results" (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                symbol TEXT NOT NULL,
+                current_price REAL,
+                crossover_date TEXT,
+                adx REAL,
+                rsi REAL,
+                rpi REAL,
+                volume_ratio REAL,
+                support REAL,
+                resistance REAL,
+                dist_ema11_pct REAL,
+                dist_ema21_pct REAL,
+                fifty_two_week_low REAL,
+                fifty_two_week_high REAL,
+                rank INTEGER,
+                is_filtered BOOLEAN NOT NULL DEFAULT 0,
+                run_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+CREATE TABLE app_state (
+    key TEXT PRIMARY KEY,
+    value TEXT
 );
