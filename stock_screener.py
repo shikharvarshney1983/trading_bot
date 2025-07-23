@@ -47,41 +47,47 @@ def get_screener_end_date(frequency):
     tz = pytz.timezone('Asia/Kolkata')
     now = datetime.now(tz)
     today = now.date()
-    market_close_time = now.replace(hour=15, minute=30, second=0, microsecond=0).time()
-    is_weekday = now.weekday() < 5  # Monday is 0, Friday is 4
-    is_during_market_hours = is_weekday and now.time() < market_close_time
+    market_close_time = datetime(2000, 1, 1, 15, 30).time()
 
     if frequency == 'daily':
-        # If run during market hours, use yesterday's data to ensure the daily candle is complete.
-        # Otherwise, use today's data (which will be the last completed day).
-        return today - timedelta(days=1) if is_during_market_hours else today
+        # Check if today is a weekday and the market has already closed.
+        market_has_closed_for_today = now.weekday() < 5 and now.time() >= market_close_time
+
+        if market_has_closed_for_today:
+            # If run after market close on a weekday, it's safe to use today's data.
+            return today
+        else:
+            # Otherwise, the market is open, hasn't opened, or it's a weekend.
+            # We need to find the last fully completed trading day.
+            if now.weekday() == 0:  # It's Monday before market close
+                return today - timedelta(days=3)  # Use last Friday's data
+            elif now.weekday() >= 5:  # It's Saturday or Sunday
+                return today - timedelta(days=now.weekday() - 4)  # Use last Friday's data
+            else:  # It's Tuesday-Friday before market close
+                return today - timedelta(days=1)  # Use yesterday's data
 
     elif frequency == 'weekly':
         today_weekday = now.weekday()
         # If it's before Friday's market close, we must use the previous week's data.
-        if today_weekday < 4 or (today_weekday == 4 and is_during_market_hours):
-            # Go back to the start of the current week (last Monday) and then to the previous Friday.
+        if today_weekday < 4 or (today_weekday == 4 and now.time() < market_close_time):
             last_monday = today - timedelta(days=today_weekday)
             return last_monday - timedelta(days=3)
         else:
-            # If it's after market close on Friday, or Saturday/Sunday, it's safe to use the current date.
-            # yfinance will fetch data up to the most recently completed week (the Friday that just passed).
+            # If it's after market close on Friday, or on a weekend, use today's date.
+            # yfinance will fetch data up to the most recently completed week.
             return today
 
     elif frequency == 'monthly':
         first_day_of_current_month = today.replace(day=1)
         last_day_of_previous_month = first_day_of_current_month - timedelta(days=1)
-
-        # To ensure a full monthly candle, we almost always use the previous month's data.
-        # The only exception is if it's run *after* the market has closed on the *last day* of the current month.
         _, last_day_num = calendar.monthrange(today.year, today.month)
         is_last_day_of_month = (today.day == last_day_num)
 
-        if is_last_day_of_month and not is_during_market_hours:
-            # It's safe to use the current month's data.
+        # It is safe to use the current month's data only if it's run *after* the market
+        # has closed on the *last day* of the current month.
+        if is_last_day_of_month and now.time() >= market_close_time:
             return today
         else:
-            # Otherwise, use the last completed month's data.
             return last_day_of_previous_month
     
     return today # Fallback
@@ -161,12 +167,15 @@ def run_screener_process(frequency='weekly'):
             logger.info("No stocks in master list. Aborting.")
             return
 
-        end_date = get_screener_end_date(frequency)
-        start_date = end_date - timedelta(days=history_days)
-        logger.info(f"Running screener for {frequency} with data ending on {end_date.strftime('%Y-%m-%d')}")
+        end_date_inclusive = get_screener_end_date(frequency)
+        start_date = end_date_inclusive - timedelta(days=history_days)
+        # Add 1 day to the end date for yfinance because it's exclusive
+        end_date_exclusive = end_date_inclusive + timedelta(days=1)
+
+        logger.info(f"Running screener for {frequency} with data ending on {end_date_inclusive.strftime('%Y-%m-%d')}")
 
 
-        nifty_data = yf.download('^NSEI', start=start_date, end=end_date, interval=interval, progress=False)
+        nifty_data = yf.download('^NSEI', start=start_date, end=end_date_exclusive, interval=interval, progress=False)
         if isinstance(nifty_data.columns, pd.MultiIndex):
             nifty_data.columns = nifty_data.columns.droplevel(1)
 
@@ -176,7 +185,7 @@ def run_screener_process(frequency='weekly'):
         for i, symbol in enumerate(all_symbols):
             logger.info(f"Processing {i+1}/{total_stocks}: {symbol} ({frequency})")
             try:
-                data = yf.download(symbol, start=start_date, end=end_date, interval=interval, progress=False)
+                data = yf.download(symbol, start=start_date, end=end_date_exclusive, interval=interval, progress=False)
 
                 if isinstance(data.columns, pd.MultiIndex):
                     data.columns = data.columns.droplevel(1)
@@ -252,7 +261,7 @@ def run_screener_process(frequency='weekly'):
             filtered_df['crossover_score'] = np.select([filtered_df['crossover_weeks_ago'] <= 3, filtered_df['crossover_weeks_ago'] <= 6], [1.0, 0.8], default=0.5)
             filtered_df['volatility_score'] = 1 / (filtered_df['atr'] + 1)
             filtered_df['rs_rating_score'] = filtered_df['rs_rating'] / 100
-            filtered_df['volume_score'] = np.clip(filtered_df['volume_ratio'] - 1, 0, 1)
+            filtered_df['volume_score'] = np.clip(df['volume_ratio'] - 1, 0, 1)
 
             weights = {'crossover': 0.20, 'rs': 0.25, 'volume': 0.1, '52w_high': 0.20, 'momentum': 0.25}
 
