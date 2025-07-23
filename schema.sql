@@ -3,14 +3,10 @@
 DROP TABLE IF EXISTS users;
 DROP TABLE IF EXISTS portfolios;
 DROP TABLE IF EXISTS transactions;
-DROP TABLE IF EXISTS sqlite_sequence;
 DROP TABLE IF EXISTS master_stocks;
 DROP TABLE IF EXISTS app_state;
 DROP TABLE IF EXISTS screener_results; 
 -- Create the necessary tables for the trading bot application
-
-CREATE TABLE sqlite_sequence(name,seq);
-INSERT INTO app_state (key, value) VALUES ('screener_status', 'idle');
 
 CREATE TABLE users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -85,3 +81,4 @@ CREATE TABLE app_state (
     key TEXT PRIMARY KEY,
     value TEXT
 );
+INSERT INTO app_state (key, value) VALUES ('screener_status', 'idle');

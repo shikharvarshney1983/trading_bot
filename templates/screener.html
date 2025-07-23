@@ -4,14 +4,21 @@
 {% block content %}
 <div class="container-fluid">
     <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
-        <h1 class="h2">Watchlist Results</h1>
+        <h1 class="h2">Watchlist Results <span class="badge bg-secondary">{{ current_frequency|capitalize }}</span></h1>
         <div class="btn-toolbar mb-2 mb-md-0">
             {% if current_user.role == 'admin' %}
-            <button id="runScreenerBtn" class="btn btn-sm btn-outline-primary me-2">
-                Run Screener Now
-            </button>
+            <div class="btn-group me-2">
+                <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" id="runScreenerBtn">
+                    Run Screener Now
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item run-now" href="#" data-frequency="daily">Daily</a></li>
+                    <li><a class="dropdown-item run-now" href="#" data-frequency="weekly">Weekly</a></li>
+                    <li><a class="dropdown-item run-now" href="#" data-frequency="monthly">Monthly</a></li>
+                </ul>
+            </div>
             {% endif %}
-            <a href="{{ url_for('download_screener_results') }}" class="btn btn-sm btn-outline-success">
+            <a href="{{ url_for('download_screener_results', frequency=current_frequency) }}" class="btn btn-sm btn-outline-success">
                 Download as Excel
             </a>
         </div>
@@ -23,12 +30,11 @@
                 <p class="card-text mb-0">
                     Last run on: <strong id="lastRunDate">{{ last_run_date or 'Not run yet' }}</strong>.
                 </p>
-                {% if current_user.role == 'admin' %}
                 <div>
-                    <a href="{{ url_for('screener_page', view='filtered') }}" class="btn btn-sm {% if view_mode == 'filtered' %}btn-primary{% else %}btn-outline-primary{% endif %}">Show Filtered</a>
-                    <a href="{{ url_for('screener_page', view='all') }}" class="btn btn-sm {% if view_mode == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">Show All</a>
+                    <a href="{{ url_for('screener_page', frequency='daily') }}" class="btn btn-sm {% if current_frequency == 'daily' %}btn-primary{% else %}btn-outline-primary{% endif %}">Daily</a>
+                    <a href="{{ url_for('screener_page', frequency='weekly') }}" class="btn btn-sm {% if current_frequency == 'weekly' %}btn-primary{% else %}btn-outline-primary{% endif %}">Weekly</a>
+                    <a href="{{ url_for('screener_page', frequency='monthly') }}" class="btn btn-sm {% if current_frequency == 'monthly' %}btn-primary{% else %}btn-outline-primary{% endif %}">Monthly</a>
                 </div>
-                {% endif %}
             </div>
             <div class="table-responsive">
                 <table id="screenerTable" class="table table-striped table-hover" style="width:100%">
@@ -102,54 +108,66 @@ $(document).ready(function() {
         "order": [[ 0, "asc" ]] // Sort by Rank by default
     });
 
-    const screenerBtn = $('#runScreenerBtn');
-    let pollingInterval;
+    const runScreenerBtn = $('#runScreenerBtn');
+    const frequencies = ['daily', 'weekly', 'monthly'];
+    let pollingIntervals = {};
 
-    function checkStatus() {
-        fetch('/api/screener_status')
+    function checkStatus(frequency) {
+        fetch(`/api/screener_status?frequency=${frequency}`)
             .then(res => res.json())
             .then(data => {
+                const runnerItem = $(`.run-now[data-frequency='${frequency}']`);
+                const mainBtnDisabled = frequencies.some(f => pollingIntervals[f]);
+                
+                runScreenerBtn.prop('disabled', mainBtnDisabled);
+
                 if (data.status === 'running') {
-                    screenerBtn.prop('disabled', true).text('Running...');
-                    // If not already polling, start polling
-                    if (!pollingInterval) {
-                       pollingInterval = setInterval(checkStatus, 10000); // Poll every 10 seconds
+                    runnerItem.addClass('disabled').html(`<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ${frequency.charAt(0).toUpperCase() + frequency.slice(1)}`);
+                    if (!pollingIntervals[frequency]) {
+                       pollingIntervals[frequency] = setInterval(() => checkStatus(frequency), 10000); // Poll every 10 seconds
                     }
                 } else {
-                    screenerBtn.prop('disabled', false).text('Run Screener Now');
-                    // If polling is active, it means the task just finished
-                    if (pollingInterval) {
-                        clearInterval(pollingInterval);
-                        pollingInterval = null;
-                        alert('Watchlist process has finished!');
-                        window.location.reload(); // Reload to show new data
+                    runnerItem.removeClass('disabled').text(frequency.charAt(0).toUpperCase() + frequency.slice(1));
+                    if (pollingIntervals[frequency]) {
+                        clearInterval(pollingIntervals[frequency]);
+                        pollingIntervals[frequency] = null;
+                        alert(`'${frequency}' watchlist process has finished!`);
+                        // Reload if the user is on the page that just finished running
+                        if ('{{ current_frequency }}' === frequency) {
+                            window.location.reload();
+                        }
                     }
                 }
             });
     }
 
-    // Check status on page load in case a task is already running
-    checkStatus();
+    // Check status for all frequencies on page load
+    frequencies.forEach(freq => checkStatus(freq));
 
-    screenerBtn.on('click', function() {
-        fetch('/api/run_screener', { method: 'POST' })
-            .then(res => {
-                if (res.status === 409) { // 409 Conflict
-                    screenerBtn.prop('disabled', false).text('Run Screener Now');
-                }
-                return res.json();
-            })
-            .then(data => {
-                alert(data.message);
-                if (data.status === 'success') {
-                    checkStatus(); // Start checking status immediately
-                }
-            })
-            .catch(err => {
-                console.error('Error starting screener:', err);
-                alert('An error occurred while trying to start the process.');
-                screenerBtn.prop('disabled', false).text('Run Screener Now');
-            });
+    $('.run-now').on('click', function(e) {
+        e.preventDefault();
+        if ($(this).hasClass('disabled')) return;
+
+        const frequency = $(this).data('frequency');
+
+        fetch('/api/run_screener', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ frequency: frequency })
+        })
+        .then(res => res.json())
+        .then(data => {
+            alert(data.message);
+            if (data.status === 'success') {
+                checkStatus(frequency); // Start checking status immediately
+            }
+        })
+        .catch(err => {
+            console.error(`Error starting ${frequency} screener:`, err);
+            alert('An error occurred while trying to start the process.');
+        });
     });
 });
 </script>

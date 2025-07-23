@@ -15,7 +15,11 @@ def main():
         # Add jobs from your app.py
         scheduler.add_job(update_live_prices, 'cron', day_of_week='mon-fri', hour='9-16', minute='30')
         scheduler.add_job(master_strategy_scheduler, 'cron', day_of_week='mon-fri', hour=15, minute=0)
-        scheduler.add_job(scheduled_screener_job, 'cron', day_of_week='fri', hour=18, minute=0)
+        
+        # Updated screener jobs
+        scheduler.add_job(scheduled_screener_job, 'cron', day_of_week='mon-fri', hour=16, minute=0, args=['daily'])
+        scheduler.add_job(scheduled_screener_job, 'cron', day_of_week='fri', hour=15, minute=0, args=['weekly'])
+        scheduler.add_job(scheduled_screener_job, 'cron', day_of_week='last fri', hour=18, minute=0, args=['monthly'])
         
         scheduler.start()
         print("Scheduler started successfully. Press Ctrl+C to exit.")
