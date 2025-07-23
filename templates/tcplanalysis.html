@@ -1,16 +1,17 @@
 <!-- Chosen Palette: Classic & professional -->
-<!-- Application Structure Plan: The application is now a standard single-page, scrollable dashboard. This structure provides a more robust and user-friendly layout, eliminating content overlap issues. A sticky top navigation bar allows for smooth scrolling to each analytical section. Key interactive elements like the MACHINE peer comparison (now with clickable details), DuPont analysis chart, and Valuation Modeler are integrated within this flow. -->
+<!-- Application Structure Plan: The application is a standard single-page, scrollable dashboard. This structure provides a more robust and user-friendly layout. A sticky top navigation bar allows for smooth scrolling to each analytical section. Key interactive elements like the MACHINE peer comparison (with clickable details), DuPont analysis chart, and Valuation Modeler are integrated within this flow. -->
 <!-- Visualization & Content Choices: 
 - Section 1: Overview - Expanded text, key stats, and embedded video.
 - Section 2: Leadership - Profile cards with a brief history of the company's origins.
-- Section 3: Global Presence - Vertically stacked maps and revenue donut charts.
+- Section 3: Global Presence - Vertically stacked maps and revenue donut charts in a revised layout.
 - Section 4: Industry Overview - Infographic style with large stats and descriptive text.
 - Section 5: Competitive Landscape - A major interactive tabbed section for MACHINE (with pop-up details) and Ratio comparisons.
 - Section 6: Growth Model - A four-column layout with interactive expand/collapse cards for the "Four Cylinders" of growth.
-- Section 7: Financials & DuPont Analysis - An interactive line chart displaying the DuPont model components over time.
-- Section 8: Valuation Modeler - The interactive valuation tool with a clean, non-overlapping layout.
-- Section 9: Technical Chart - A static image of the monthly chart with a working link.
-- Section 10: Investment Rationale - The final summary with enriched content and icons.
+- Section 7: Historical Performance - A new dedicated section for the historical financials chart with revised scales and updated data.
+- Section 8: DuPont Analysis - An interactive line chart displaying the DuPont model components over time with corrected data.
+- Section 9: Valuation Modeler - The interactive valuation tool with a clean, non-overlapping layout.
+- Section 10: Technical Chart - Static images of the monthly charts with corrected titles.
+- Section 11: Investment Rationale - The final summary with enriched content and icons.
 - CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
 <!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
@@ -27,7 +28,7 @@
             background-color: #ecf0f1;
             color: #2c3e50;
         }
-        .chart-container { position: relative; width: 100%; max-width: 700px; margin-left: auto; margin-right: auto; height: 350px; max-height: 400px; }
+        .chart-container { position: relative; width: 100%; max-width: 900px; margin-left: auto; margin-right: auto; height: 400px; max-height: 500px; }
         .small-chart-container { position: relative; width: 100%; max-width: 350px; margin-left: auto; margin-right: auto; height: 300px; max-height: 350px; }
         @media (max-width: 768px) { .chart-container { height: 300px; } }
         .nav-link { transition: color 0.3s, border-bottom-color 0.3s; }
@@ -89,7 +90,8 @@
                 <a href="#industry" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Industry</a>
                 <a href="#competitive" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Competition</a>
                 <a href="#growth" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Growth Model</a>
-                <a href="#financials" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Financials</a>
+                <a href="#historical" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Performance</a>
+                <a href="#financials" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">DuPont Analysis</a>
                 <a href="#valuation" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Valuation</a>
                 <a href="#technicals" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Technicals</a>
                 <a href="#rationale" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Rationale</a>
@@ -153,18 +155,17 @@
             <h2 class="text-4xl font-bold text-[#2c3e50] mb-4 text-center">Global Presence & Revenue Mix</h2>
             <p class="text-[#34495e] mb-8 text-center max-w-3xl mx-auto">Explore TCPL's manufacturing footprint, international reach, and how its revenue is diversified across products and regions.</p>
             <div class="bg-white p-6 rounded-lg shadow-md">
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div class="flex flex-col gap-8">
-                         <div class="text-center">
-                            <h3 class="text-xl font-semibold mb-3">Pan-India Manufacturing Footprint</h3>
-                            <img src="https://www.tcpl.in/wp-content/uploads/2025/05/Factory-Map-1.png" alt="TCPL Manufacturing locations in India" class="rounded-lg shadow-sm mx-auto w-full" onerror="this.onerror=null;this.src='https://placehold.co/600x300/cccccc/333333?text=Manufacturing+Map';">
-                        </div>
-                        <div class="text-center">
-                            <h3 class="text-xl font-semibold mb-3">Expanding Global Exports</h3>
-                            <img src="https://www.tcpl.in/wp-content/uploads/2025/05/world-color-map_26.07.2024--2048x1145.png" alt="TCPL Global export markets" class="rounded-lg shadow-sm mx-auto w-full" onerror="this.onerror=null;this.src='https://placehold.co/600x300/cccccc/333333?text=Export+Map';">
-                        </div>
+                <div class="grid grid-cols-1 gap-8">
+                    <div class="text-center">
+                        <h3 class="text-xl font-semibold mb-3">Pan-India Manufacturing Footprint</h3>
+                        <img src="https://www.tcpl.in/wp-content/uploads/2025/05/Factory-Map-1.png" alt="TCPL Manufacturing locations in India" class="rounded-lg shadow-sm mx-auto w-full max-w-3xl" onerror="this.onerror=null;this.src='https://placehold.co/600x300/cccccc/333333?text=Manufacturing+Map';">
                     </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-8">
+                    <div class="text-center">
+                        <h3 class="text-xl font-semibold mb-3">Expanding Global Exports</h3>
+                        <img src="https://www.tcpl.in/wp-content/uploads/2025/05/world-color-map_26.07.2024--2048x1145.png" alt="TCPL Global export markets" class="rounded-lg shadow-sm mx-auto w-full max-w-3xl" onerror="this.onerror=null;this.src='https://placehold.co/600x300/cccccc/333333?text=Export+Map';">
+                    </div>
+                    <hr class="my-4 border-gray-300">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                         <div class="text-center">
                             <h3 class="text-xl font-semibold mb-3">Revenue by Product (FY25)</h3>
                             <div class="small-chart-container mx-auto">
@@ -391,10 +392,20 @@
                 </div>
             </div>
         </section>
+        
+        <section id="historical" class="mb-12 scroll-mt-32">
+            <h2 class="text-4xl font-bold text-[#2c3e50] mb-4 text-center">Historical Performance</h2>
+            <p class="text-[#34495e] mb-8 text-center max-w-3xl mx-auto">A detailed look at TCPL's financial trends over the last five fiscal years, highlighting revenue growth, profitability, and margin evolution.</p>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="chart-container">
+                    <canvas id="historicalPerformanceChart"></canvas>
+                </div>
+            </div>
+        </section>
 
         <section id="financials" class="mb-12 scroll-mt-32">
             <div class="section-content">
-                <h2 class="text-4xl font-bold text-[#2c3e50] mb-4 text-center">Financials & DuPont Analysis</h2>
+                <h2 class="text-4xl font-bold text-[#2c3e50] mb-4 text-center">DuPont Analysis</h2>
                 <p class="text-[#34495e] mb-8 text-center max-w-3xl mx-auto">Deconstructing the Return on Equity (ROE) to understand the key drivers of shareholder returns over the past decade.</p>
                 <div class="bg-white p-6 rounded-lg shadow-md">
                     <div class="h-[500px]">
@@ -449,12 +460,12 @@
                 <p class="text-[#34495e] mb-8 text-center max-w-3xl mx-auto">Long-term and medium-term price trends for TCPL Packaging Ltd. (NSE: TCPLPACK).</p>
                 <div class="grid grid-cols-1 gap-8">
                     <div class="bg-white p-2 rounded-lg shadow-md w-full">
-                         <h3 class="text-xl font-semibold my-2 text-center">Weekly Chart with Technical Indicators</h3>
-                        <img src="https://www.tradingview.com/x/6I7nbTbx/" alt="TCPL Packaging Weekly Chart" class="w-full h-auto rounded-lg" onerror="this.onerror=null;this.src='https://placehold.co/1200x600/cccccc/333333?text=Weekly+Chart+Not+Available';">
+                         <h3 class="text-xl font-semibold my-2 text-center">Monthly Chart with Technical Indicators</h3>
+                        <img src="https://www.tradingview.com/x/6I7nbTbx/" alt="TCPL Packaging Weekly Chart" class="w-full h-auto rounded-lg" onerror="this.onerror=null;this.src='https://placehold.co/1200x600/cccccc/333333?text=Chart+Not+Available';">
                     </div>
                     <div class="bg-white p-2 rounded-lg shadow-md w-full">
                         <h3 class="text-xl font-semibold my-2 text-center">Monthly Chart - Long Term Trend</h3>
-                        <img src="https://www.tradingview.com/x/aewp1Ekg/" alt="TCPL Packaging Monthly Chart" class="w-full h-auto rounded-lg" onerror="this.onerror=null;this.src='https://placehold.co/1200x600/cccccc/333333?text=Monthly+Chart+Not+Available';">
+                        <img src="https://www.tradingview.com/x/aewp1Ekg/" alt="TCPL Packaging Monthly Chart" class="w-full h-auto rounded-lg" onerror="this.onerror=null;this.src='https://placehold.co/1200x600/cccccc/333333?text=Chart+Not+Available';">
                     </div>
                 </div>
             </div>
@@ -505,6 +516,67 @@
     document.addEventListener('DOMContentLoaded', function () {
         
         // Charting logic
+        const historicalData = {
+            labels: ['FY21', 'FY22', 'FY23', 'FY24', 'FY25', 'FY26 (E)'],
+            datasets: [
+                {
+                    label: 'Revenue (₹ Cr)',
+                    data: [904, 1076, 1432, 1491, 1696, 2140],
+                    backgroundColor: '#34495e',
+                    yAxisID: 'y',
+                    order: 2
+                },
+                {
+                    label: 'PAT (₹ Cr)',
+                    data: [34, 49, 118, 102, 141, 180],
+                    backgroundColor: '#f1c40f',
+                    yAxisID: 'y',
+                    order: 2
+                },
+                {
+                    type: 'line',
+                    label: 'EBITDA Margin (%)',
+                    data: [15.1, 14.5, 16.7, 16.3, 16.6, 17.0],
+                    borderColor: '#e74c3c',
+                    backgroundColor: '#e74c3c',
+                    yAxisID: 'y1',
+                    tension: 0.2,
+                    order: 1
+                }
+            ]
+        };
+
+        const historicalCanvas = document.getElementById('historicalPerformanceChart');
+        if(historicalCanvas) {
+            new Chart(historicalCanvas.getContext('2d'), {
+                type: 'bar',
+                data: historicalData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: { display: true, text: 'Amount (₹ Cr)' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            grid: { drawOnChartArea: false },
+                            title: { display: true, text: 'EBITDA Margin (%)' }
+                        }
+                    },
+                    plugins: {
+                        tooltip: { mode: 'index', intersect: false }
+                    }
+                }
+            });
+        }
+
+
         const dupontData = {
             labels: ['Mar-16', 'Mar-17', 'Mar-18', 'Mar-19', 'Mar-20', 'Mar-21', 'Mar-22', 'Mar-23', 'Mar-24', 'Mar-25'],
             datasets: [
@@ -717,7 +789,7 @@
 
             function calculatePrice(year, salesCAGR, ebitdaMargin, peMultiple) {
                 const yearsToProject = parseInt(year) - 25;
-                const baseRevenue = 1770;
+                const baseRevenue = 1696; // FY25 Revenue from Excel
                 const projectedRevenue = baseRevenue * Math.pow(1 + (salesCAGR / 100), yearsToProject);
                 const projectedEBITDA = projectedRevenue * (ebitdaMargin / 100);
                 const depreciationAndInterest = projectedRevenue * 0.085; 
