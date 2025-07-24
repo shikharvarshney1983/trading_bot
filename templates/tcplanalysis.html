@@ -1,38 +1,134 @@
-<!-- Chosen Palette: Classic & professional -->
-<!-- Application Structure Plan: The application is a standard single-page, scrollable dashboard. This structure provides a more robust and user-friendly layout. A sticky top navigation bar allows for smooth scrolling to each analytical section. Key interactive elements like the MACHINE peer comparison (with clickable details), DuPont analysis chart, and Valuation Modeler are integrated within this flow. -->
-<!-- Visualization & Content Choices: 
-- Section 1: Overview - Expanded text, key stats, and embedded video.
-- Section 2: Leadership - Profile cards with a brief history of the company's origins.
-- Section 3: Global Presence - Vertically stacked maps and revenue donut charts in a revised layout.
-- Section 4: Industry Overview - Infographic style with large stats and descriptive text.
-- Section 5: Competitive Landscape - A major interactive tabbed section for MACHINE (with pop-up details) and Ratio comparisons.
-- Section 6: Growth Model - A four-column layout with interactive expand/collapse cards for the "Four Cylinders" of growth.
-- Section 7: Historical Performance - A new dedicated section for the historical financials chart with revised scales and updated data.
-- Section 8: DuPont Analysis - An interactive line chart displaying the DuPont model components over time with corrected data.
-- Section 9: Valuation Modeler - The interactive valuation tool with a clean, non-overlapping layout and updated projection data.
-- Section 10: Technical Chart - Static images of the monthly charts with corrected titles.
-- Section 11: Investment Rationale - The final summary with enriched content and icons.
-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
 <!DOCTYPE html>
 <html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TCPL Packaging - Investment Analysis</title>
+    <title>TCPL Packaging - Interactive Investment Analysis</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #ecf0f1;
-            color: #2c3e50;
+            background-color: #f0f4f8; /* Lighter, softer blue-gray */
+            color: #1e293b; /* Dark slate */
         }
+
+        /* Styles for the main dashboard cards */
+        .dashboard-card {
+            background-color: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+        }
+
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            line-height: 1;
+        }
+
+        /* Styles for the modal (pop-up) */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(30, 41, 59, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0s 0.3s;
+        }
+
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-container {
+            background-color: #f8fafc; /* Light gray background for content */
+            border-radius: 0.75rem;
+            max-width: 95%;
+            width: 1100px; /* Wider for better content display */
+            max-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+            box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+        }
+
+        .modal-overlay.visible .modal-container {
+            transform: scale(1);
+        }
+
+        .modal-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: white;
+            border-top-left-radius: 0.75rem;
+            border-top-right-radius: 0.75rem;
+        }
+        
+        #modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        #modal-close {
+            background: none;
+            border: none;
+            font-size: 2rem;
+            font-weight: 300;
+            color: #64748b;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        #modal-close:hover {
+            color: #1e293b;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+        
+        /* Styles for scrollable view sections */
+        #scrollable-view-container section {
+            margin-bottom: 3rem;
+            scroll-margin-top: 100px; /* Adjust based on header height */
+        }
+        
+        /* Chart container styles to work within the modal */
         .chart-container { position: relative; width: 100%; max-width: 900px; margin-left: auto; margin-right: auto; height: 400px; max-height: 500px; }
         .small-chart-container { position: relative; width: 100%; max-width: 350px; margin-left: auto; margin-right: auto; height: 300px; max-height: 350px; }
         @media (max-width: 768px) { .chart-container { height: 300px; } }
-        .nav-link { transition: color 0.3s, border-bottom-color 0.3s; }
-        .nav-link:hover, .nav-link.active { color: #3498db; border-bottom-color: #3498db; }
+        
+        /* General styles from original file to ensure consistency */
         .profile-card { transition: transform 0.3s, box-shadow 0.3s; }
         .profile-card:hover { transform: translateY(-5px); box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); }
         .rationale-item { transition: background-color 0.3s; }
@@ -40,68 +136,56 @@
         .details-content { max-height: 0; overflow: hidden; transition: max-height 0.5s ease-in-out; }
         .machine-header { cursor: pointer; }
         .machine-header:hover { color: #3498db; }
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s, visibility 0.3s;
-        }
-        .modal-overlay.visible {
-            opacity: 1;
-            visibility: visible;
-        }
-        .modal-content {
-            background-color: white;
-            padding: 2rem;
-            border-radius: 0.5rem;
-            max-width: 90%;
-            width: 600px;
-            max-height: 90vh;
-            overflow-y: auto;
-            transform: scale(0.9);
-            transition: transform 0.3s;
-        }
-        .modal-overlay.visible .modal-content {
-            transform: scale(1);
-        }
+        .year-btn { padding: 0.5rem 1.5rem; border: 1px solid #cbd5e1; border-radius: 9999px; transition: background-color 0.2s, color 0.2s; }
+        .year-btn.active { background-color: #2c3e50; color: white; border-color: #2c3e50; }
     </style>
 </head>
 <body class="antialiased">
 
-    <header class="bg-[#2c3e50] text-white p-4 text-center sticky top-0 z-50 shadow-lg">
-        <h1 class="text-2xl md:text-3xl font-bold">TCPL Packaging Ltd. Investment Analysis</h1>
-    </header>
-
-    <nav class="bg-white shadow-md sticky top-[68px] md:top-[76px] z-40">
-        <div class="container mx-auto px-4">
-            <div class="flex justify-center space-x-4 md:space-x-8 overflow-x-auto whitespace-nowrap">
-                <a href="#overview" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Overview</a>
-                <a href="#leadership" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Leadership</a>
-                <a href="#presence" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Global Presence</a>
-                <a href="#industry" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Industry</a>
-                <a href="#competitive" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Competition</a>
-                <a href="#growth" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Growth Model</a>
-                <a href="#historical" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Performance</a>
-                <a href="#financials" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">DuPont Analysis</a>
-                <a href="#valuation" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Valuation</a>
-                <a href="#technicals" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Technicals</a>
-                <a href="#rationale" class="nav-link text-sm md:text-base font-medium py-3 border-b-2 border-transparent">Rationale</a>
+    <header class="bg-[#2c3e50] text-white p-4 shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="text-left">
+                <h1 class="text-xl md:text-3xl font-bold">TCPL Packaging Ltd.</h1>
+                <p id="header-subtitle" class="text-sm md:text-base opacity-80 mt-1">Click a section to view details</p>
+            </div>
+            <div class="flex items-center space-x-4">
+                <img src="https://i.ibb.co/1YXv5n9h/aakash.jpg" alt="Aakash Community Logo" class="h-10 w-10 rounded-full object-cover" onerror="this.onerror=null;this.src='https://placehold.co/40x40/8e44ad/ffffff?text=A';">
+                <img src="https://i.ibb.co/Ndq6KzNp/Techno-Funda.jpg" alt="TechnoFunda Investing Logo" class="h-10 w-10 object-contain" onerror="this.onerror=null;this.src='https://placehold.co/40x40/ffffff/000000?text=TFI';">
+                <button id="view-toggle-btn" class="bg-white/20 hover:bg-white/30 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                    Scrollable View
+                </button>
             </div>
         </div>
-    </nav>
+    </header>
 
-    <main class="container mx-auto p-4 md:p-8">
+    <!-- Container for Card View -->
+    <main id="card-view-container" class="container mx-auto p-4 md:p-8">
+        <div id="dashboard-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+            <!-- Cards will be dynamically inserted here -->
+        </div>
+    </main>
 
-        <section id="overview" class="mb-12 scroll-mt-32">
+    <!-- Container for Scrollable View -->
+    <main id="scrollable-view-container" class="container mx-auto p-4 md:p-8 hidden">
+        <!-- Scrollable content will be injected here -->
+    </main>
+    
+    <!-- Modal Structure for Card View -->
+    <div id="main-modal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 id="modal-title"></h2>
+                <button id="modal-close">&times;</button>
+            </div>
+            <div id="modal-body" class="modal-body">
+                <!-- Section content will be injected here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Hidden storage for original section content -->
+    <div id="section-storage" class="hidden">
+        <section id="overview" data-icon="📄" data-title="Company Overview">
             <h2 class="text-4xl font-bold text-[#2c3e50] mb-4 text-center">Company Overview</h2>
             <div class="grid grid-cols-1 lg:grid-cols-5 gap-8 items-center">
                 <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
@@ -126,7 +210,7 @@
             </div>
         </section>
 
-        <section id="leadership" class="mb-12 scroll-mt-32">
+        <section id="leadership" data-icon="👥" data-title="Leadership">
             <h2 class="text-4xl font-bold text-[#2c3e50] mb-4 text-center">Leadership</h2>
             <p class="text-[#34495e] mb-8 text-center max-w-3xl mx-auto">Meet the experienced leadership team guiding TCPL's strategic vision and operational excellence.</p>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
@@ -151,7 +235,7 @@
             </div>
         </section>
         
-        <section id="presence" class="mb-12 scroll-mt-32">
+        <section id="presence" data-icon="🌍" data-title="Global Presence">
             <h2 class="text-4xl font-bold text-[#2c3e50] mb-4 text-center">Global Presence & Revenue Mix</h2>
             <p class="text-[#34495e] mb-8 text-center max-w-3xl mx-auto">Explore TCPL's manufacturing footprint, international reach, and how its revenue is diversified across products and regions.</p>
             <div class="bg-white p-6 rounded-lg shadow-md">
@@ -183,7 +267,7 @@
             </div>
         </section>
 
-        <section id="industry" class="mb-12 scroll-mt-32">
+        <section id="industry" data-icon="📈" data-title="Industry Overview">
             <h2 class="text-4xl font-bold text-[#2c3e50] mb-4 text-center">Industry Overview</h2>
             <p class="text-[#34495e] mb-8 text-center max-w-3xl mx-auto">TCPL operates in a structurally growing industry, benefiting from powerful economic and consumer trends.</p>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
@@ -205,7 +289,7 @@
             </div>
         </section>
 
-        <section id="competitive" class="mb-12 scroll-mt-32">
+        <section id="competitive" data-icon="⚔️" data-title="Competitive Landscape">
              <h2 class="text-4xl font-bold text-[#2c3e50] mb-4 text-center">Competitive Landscape</h2>
              <p class="text-[#34495e] mb-8 text-center max-w-3xl mx-auto">Analyzing TCPL's position against its peers using the MACHINE framework and key financial ratios.</p>
             <div class="bg-white p-6 rounded-lg shadow-md">
@@ -243,7 +327,6 @@
                                     <td class="p-3 text-center text-green-500">✅</td>
                                     <td class="p-3 font-semibold">⭐ Best in Class</td>
                                 </tr>
-                                <!-- Other peer rows -->
                                 <tr class="border-b bg-gray-50">
                                     <td class="p-3">Huhtamaki India</td>
                                     <td class="p-3 text-center text-green-500">✅</td>
@@ -322,77 +405,75 @@
             </div>
         </section>
         
-        <section id="growth" class="mb-12 scroll-mt-32">
-             <div class="section-content">
-                <h2 class="text-4xl font-bold text-[#2c3e50] mb-4 text-center">Growth Model: The 4 Cylinders</h2>
-                <p class="text-[#34495e] mb-8 text-center max-w-3xl mx-auto">TCPL's growth is powered by four distinct yet interconnected drivers. Click on each pillar to explore.</p>
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    <div class="growth-card bg-white p-6 rounded-lg shadow-md cursor-pointer hover:shadow-xl transition-shadow duration-300" data-target="details-sales">
-                        <h3 class="text-xl font-semibold text-[#3498db] mb-3">1. Sales Growth</h3>
-                        <div id="details-sales" class="details-content text-sm">
-                            <p class="font-semibold text-gray-700">Existing Drivers:</p>
-                            <ul class="list-disc list-inside space-y-1 text-gray-600 mb-3">
-                                <li>Outpacing industry growth</li>
-                                <li>Gaining market share</li>
-                                <li>Effective price increases</li>
-                            </ul>
-                            <p class="font-semibold text-gray-700">New Catalysts:</p>
-                            <ul class="list-disc list-inside space-y-1 text-gray-600">
-                                <li>New sustainable products</li>
-                                <li>Deeper domestic penetration</li>
-                                <li>Entry into premium categories</li>
-                            </ul>
-                        </div>
+        <section id="growth" data-icon="🚀" data-title="Growth Model">
+            <h2 class="text-4xl font-bold text-[#2c3e50] mb-4 text-center">Growth Model: The 4 Cylinders</h2>
+            <p class="text-[#34495e] mb-8 text-center max-w-3xl mx-auto">TCPL's growth is powered by four distinct yet interconnected drivers. Click on each pillar to explore.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="growth-card bg-white p-6 rounded-lg shadow-md cursor-pointer hover:shadow-xl transition-shadow duration-300" data-target="details-sales">
+                    <h3 class="text-xl font-semibold text-[#3498db] mb-3">1. Sales Growth</h3>
+                    <div id="details-sales" class="details-content text-sm">
+                        <p class="font-semibold text-gray-700">Existing Drivers:</p>
+                        <ul class="list-disc list-inside space-y-1 text-gray-600 mb-3">
+                            <li>Outpacing industry growth</li>
+                            <li>Gaining market share</li>
+                            <li>Effective price increases</li>
+                        </ul>
+                        <p class="font-semibold text-gray-700">New Catalysts:</p>
+                        <ul class="list-disc list-inside space-y-1 text-gray-600">
+                            <li>New sustainable products</li>
+                            <li>Deeper domestic penetration</li>
+                            <li>Entry into premium categories</li>
+                        </ul>
                     </div>
-                    <div class="growth-card bg-white p-6 rounded-lg shadow-md cursor-pointer hover:shadow-xl transition-shadow duration-300" data-target="details-leverage">
-                        <h3 class="text-xl font-semibold text-[#2ecc71] mb-3">2. Operating Leverage</h3>
-                         <div id="details-leverage" class="details-content text-sm">
-                            <p class="font-semibold text-gray-700">Existing Drivers:</p>
-                            <ul class="list-disc list-inside space-y-1 text-gray-600 mb-3">
-                                <li>75% utilization in manufacturing plants</li>
-                            </ul>
-                            <p class="font-semibold text-gray-700">New Catalysts:</p>
-                            <ul class="list-disc list-inside space-y-1 text-gray-600">
-                                <li>Ramp-up of new capacity (~25% increase)</li>
-                                <li>Spreading fixed costs over larger revenue base</li>
-                            </ul>
-                        </div>
+                </div>
+                <div class="growth-card bg-white p-6 rounded-lg shadow-md cursor-pointer hover:shadow-xl transition-shadow duration-300" data-target="details-leverage">
+                    <h3 class="text-xl font-semibold text-[#2ecc71] mb-3">2. Operating Leverage</h3>
+                     <div id="details-leverage" class="details-content text-sm">
+                        <p class="font-semibold text-gray-700">Existing Drivers:</p>
+                        <ul class="list-disc list-inside space-y-1 text-gray-600 mb-3">
+                            <li>75% utilization in manufacturing plants</li>
+                        </ul>
+                        <p class="font-semibold text-gray-700">New Catalysts:</p>
+                        <ul class="list-disc list-inside space-y-1 text-gray-600">
+                            <li>Ramp-up of new capacity (~25% increase)</li>
+                            <li>Spreading fixed costs over larger revenue base</li>
+                        </ul>
                     </div>
-                    <div class="growth-card bg-white p-6 rounded-lg shadow-md cursor-pointer hover:shadow-xl transition-shadow duration-300" data-target="details-margin">
-                        <h3 class="text-xl font-semibold text-[#e74c3c] mb-3">3. Margin Expansion</h3>
-                        <div id="details-margin" class="details-content text-sm">
-                            <p class="font-semibold text-gray-700">Existing Drivers:</p>
-                            <ul class="list-disc list-inside space-y-1 text-gray-600 mb-3">
-                                <li>Shift to high-margin products</li>
-                                <li>Cost efficiency programs</li>
-                            </ul>
-                            <p class="font-semibold text-gray-700">New Catalysts:</p>
-                            <ul class="list-disc list-inside space-y-1 text-gray-600">
-                                <li>Higher utilization from new plants</li>
-                                <li>Backward integration benefits</li>
-                            </ul>
-                        </div>
+                </div>
+                <div class="growth-card bg-white p-6 rounded-lg shadow-md cursor-pointer hover:shadow-xl transition-shadow duration-300" data-target="details-margin">
+                    <h3 class="text-xl font-semibold text-[#e74c3c] mb-3">3. Margin Expansion</h3>
+                    <div id="details-margin" class="details-content text-sm">
+                        <p class="font-semibold text-gray-700">Existing Drivers:</p>
+                        <ul class="list-disc list-inside space-y-1 text-gray-600 mb-3">
+                            <li>Shift to high-margin products</li>
+                            <li>Cost efficiency programs</li>
+                        </ul>
+                        <p class="font-semibold text-gray-700">New Catalysts:</p>
+                        <ul class="list-disc list-inside space-y-1 text-gray-600">
+                            <li>Higher utilization from new plants</li>
+                            <li>Backward integration benefits</li>
+                        </ul>
                     </div>
-                    <div class="growth-card bg-white p-6 rounded-lg shadow-md cursor-pointer hover:shadow-xl transition-shadow duration-300" data-target="details-debt">
-                        <h3 class="text-xl font-semibold text-[#f39c12] mb-3">4. Debt Reduction</h3>
-                        <div id="details-debt" class="details-content text-sm">
-                            <p class="font-semibold text-gray-700">Existing Drivers:</p>
-                            <ul class="list-disc list-inside space-y-1 text-gray-600 mb-3">
-                                <li>Prudent debt management (D/E ~0.95x)</li>
-                                <li>Strong interest coverage</li>
-                            </ul>
-                            <p class="font-semibold text-gray-700">New Catalysts:</p>
-                            <ul class="list-disc list-inside space-y-1 text-gray-600">
-                                <li>Strong free cash flow post-capex cycle</li>
-                                <li>Faster deleveraging potential</li>
-                            </ul>
-                        </div>
+                </div>
+                <div class="growth-card bg-white p-6 rounded-lg shadow-md cursor-pointer hover:shadow-xl transition-shadow duration-300" data-target="details-debt">
+                    <h3 class="text-xl font-semibold text-[#f39c12] mb-3">4. Debt Reduction</h3>
+                    <div id="details-debt" class="details-content text-sm">
+                        <p class="font-semibold text-gray-700">Existing Drivers:</p>
+                        <ul class="list-disc list-inside space-y-1 text-gray-600 mb-3">
+                            <li>Prudent debt management (D/E ~0.95x)</li>
+                            <li>Strong interest coverage</li>
+                        </ul>
+                        <p class="font-semibold text-gray-700">New Catalysts:</p>
+                        <ul class="list-disc list-inside space-y-1 text-gray-600">
+                            <li>Strong free cash flow post-capex cycle</li>
+                            <li>Faster deleveraging potential</li>
+                        </ul>
                     </div>
                 </div>
             </div>
         </section>
         
-        <section id="historical" class="mb-12 scroll-mt-32">
+        <section id="historical" data-icon="📊" data-title="Historical Performance">
             <h2 class="text-4xl font-bold text-[#2c3e50] mb-4 text-center">Historical Performance</h2>
             <p class="text-[#34495e] mb-8 text-center max-w-3xl mx-auto">A detailed look at TCPL's financial trends over the last five fiscal years, highlighting revenue growth, profitability, and margin evolution.</p>
             <div class="bg-white p-6 rounded-lg shadow-md">
@@ -402,489 +483,308 @@
             </div>
         </section>
 
-        <section id="financials" class="mb-12 scroll-mt-32">
-            <div class="section-content">
-                <h2 class="text-4xl font-bold text-[#2c3e50] mb-4 text-center">DuPont Analysis</h2>
-                <p class="text-[#34495e] mb-8 text-center max-w-3xl mx-auto">Deconstructing the Return on Equity (ROE) to understand the key drivers of shareholder returns over the past decade.</p>
-                <div class="bg-white p-6 rounded-lg shadow-md">
-                    <div class="h-[500px]">
-                        <canvas id="dupontChart"></canvas>
-                    </div>
+        <section id="financials" data-icon="➗" data-title="DuPont Analysis">
+            <h2 class="text-4xl font-bold text-[#2c3e50] mb-4 text-center">DuPont Analysis</h2>
+            <p class="text-[#34495e] mb-8 text-center max-w-3xl mx-auto">Deconstructing the Return on Equity (ROE) to understand the key drivers of shareholder returns over the past decade.</p>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="h-[500px]">
+                    <canvas id="dupontChart"></canvas>
                 </div>
             </div>
         </section>
 
-        <section id="valuation" class="mb-12 scroll-mt-32">
-             <div class="section-content">
-                <h2 class="text-4xl font-bold text-[#2c3e50] mb-4 text-center">Valuation Modeler</h2>
-                <p class="text-[#34495e] mb-8 text-center max-w-3xl mx-auto">Use the controls to model valuation scenarios. Select a target year, then adjust your assumptions using the sliders to see a custom projection.</p>
-                <div class="bg-white p-6 rounded-lg shadow-md">
-                     <div class="flex justify-center space-x-2 md:space-x-4 mb-6" id="year-selector">
-                        <button data-year="26" class="year-btn active">FY26</button>
-                        <button data-year="27" class="year-btn">FY27</button>
-                        <button data-year="28" class="year-btn">FY28</button>
-                    </div>
-                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                        <div class="lg:col-span-2">
-                            <div class="h-[450px]">
-                                <canvas id="valuationChart"></canvas>
-                            </div>
+        <section id="valuation" data-icon="⚖️" data-title="Valuation Modeler">
+            <h2 class="text-4xl font-bold text-[#2c3e50] mb-4 text-center">Valuation Modeler</h2>
+            <p class="text-[#34495e] mb-8 text-center max-w-3xl mx-auto">Use the controls to model valuation scenarios. Select a target year, then adjust your assumptions using the sliders to see a custom projection.</p>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                 <div class="flex justify-center space-x-2 md:space-x-4 mb-6" id="year-selector">
+                    <button data-year="26" class="year-btn active">FY26</button>
+                    <button data-year="27" class="year-btn">FY27</button>
+                    <button data-year="28" class="year-btn">FY28</button>
+                </div>
+                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2">
+                        <div class="h-[450px]">
+                            <canvas id="valuationChart"></canvas>
                         </div>
-                        <div class="space-y-6">
-                            <div>
-                                <label for="sales-growth-slider" class="block font-semibold mb-1">Sales CAGR Expectation: <span id="sales-growth-value" class="font-bold text-[#3498db]">15%</span></label>
-                                <input id="sales-growth-slider" type="range" min="10" max="22" value="15" step="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-                            </div>
-                            <div>
-                                <label for="margin-slider" class="block font-semibold mb-1">Projected EBITDA Margin: <span id="margin-value" class="font-bold text-[#3498db]">17.0%</span></label>
-                                <input id="margin-slider" type="range" min="14" max="19" value="17" step="0.5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-                            </div>
-                            <div>
-                                <label for="pe-multiple-slider" class="block font-semibold mb-1">Target P/E Multiple: <span id="pe-multiple-value" class="font-bold text-[#3498db]">22x</span></label>
-                                <input id="pe-multiple-slider" type="range" min="14" max="28" value="22" step="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
-                            </div>
-                            <div class="bg-gray-100 p-4 rounded-lg text-center">
-                                <div id="custom-valuation-title" class="text-gray-600">Your Custom Projected Price (FY26)</div>
-                                <div id="custom-valuation-output" class="text-3xl font-bold text-[#2c3e50] mt-1">₹3371</div>
-                            </div>
+                    </div>
+                    <div class="space-y-6">
+                        <div>
+                            <label for="sales-growth-slider" class="block font-semibold mb-1">Sales CAGR Expectation: <span id="sales-growth-value" class="font-bold text-[#3498db]">15%</span></label>
+                            <input id="sales-growth-slider" type="range" min="10" max="22" value="15" step="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div>
+                            <label for="margin-slider" class="block font-semibold mb-1">Projected EBITDA Margin: <span id="margin-value" class="font-bold text-[#3498db]">17.0%</span></label>
+                            <input id="margin-slider" type="range" min="14" max="19" value="17" step="0.5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div>
+                            <label for="pe-multiple-slider" class="block font-semibold mb-1">Target P/E Multiple: <span id="pe-multiple-value" class="font-bold text-[#3498db]">22x</span></label>
+                            <input id="pe-multiple-slider" type="range" min="14" max="28" value="22" step="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div class="bg-gray-100 p-4 rounded-lg text-center">
+                            <div id="custom-valuation-title" class="text-gray-600">Your Custom Projected Price (FY26)</div>
+                            <div id="custom-valuation-output" class="text-3xl font-bold text-[#2c3e50] mt-1">₹3371</div>
                         </div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <section id="technicals" class="mb-12 scroll-mt-32">
-            <div class="section-content">
-                <h2 class="text-4xl font-bold text-[#2c3e50] mb-4 text-center">Technical Charts</h2>
-                <p class="text-[#34495e] mb-8 text-center max-w-3xl mx-auto">Long-term and medium-term price trends for TCPL Packaging Ltd. (NSE: TCPLPACK).</p>
-                <div class="grid grid-cols-1 gap-8">
-                    <div class="bg-white p-2 rounded-lg shadow-md w-full">
-                         <h3 class="text-xl font-semibold my-2 text-center">Monthly Chart with Technical Indicators</h3>
-                        <img src="https://www.tradingview.com/x/6I7nbTbx/" alt="TCPL Packaging Weekly Chart" class="w-full h-auto rounded-lg" onerror="this.onerror=null;this.src='https://placehold.co/1200x600/cccccc/333333?text=Chart+Not+Available';">
-                    </div>
-                    <div class="bg-white p-2 rounded-lg shadow-md w-full">
-                        <h3 class="text-xl font-semibold my-2 text-center">Monthly Chart - Long Term Trend</h3>
-                        <img src="https://www.tradingview.com/x/aewp1Ekg/" alt="TCPL Packaging Monthly Chart" class="w-full h-auto rounded-lg" onerror="this.onerror=null;this.src='https://placehold.co/1200x600/cccccc/333333?text=Chart+Not+Available';">
-                    </div>
+        <section id="technicals" data-icon="📈" data-title="Technical Charts">
+            <h2 class="text-4xl font-bold text-[#2c3e50] mb-4 text-center">Technical Charts</h2>
+            <p class="text-[#34495e] mb-8 text-center max-w-3xl mx-auto">Long-term and medium-term price trends for TCPL Packaging Ltd. (NSE: TCPLPACK).</p>
+            <div class="grid grid-cols-1 gap-8">
+                <div class="bg-white p-2 rounded-lg shadow-md w-full">
+                     <h3 class="text-xl font-semibold my-2 text-center">Monthly Chart with Technical Indicators</h3>
+                    <img src="https://www.tradingview.com/x/6I7nbTbx/" alt="TCPL Packaging Weekly Chart" class="w-full h-auto rounded-lg" onerror="this.onerror=null;this.src='https://placehold.co/1200x600/cccccc/333333?text=Chart+Not+Available';">
+                </div>
+                <div class="bg-white p-2 rounded-lg shadow-md w-full">
+                    <h3 class="text-xl font-semibold my-2 text-center">Monthly Chart - Long Term Trend</h3>
+                    <img src="https://www.tradingview.com/x/aewp1Ekg/" alt="TCPL Packaging Monthly Chart" class="w-full h-auto rounded-lg" onerror="this.onerror=null;this.src='https://placehold.co/1200x600/cccccc/333333?text=Chart+Not+Available';">
                 </div>
             </div>
         </section>
 
-        <section id="rationale" class="mb-12 scroll-mt-32">
-            <div class="section-content">
-                <h2 class="text-4xl font-bold text-[#2c3e50] mb-4 text-center">Investment Rationale</h2>
-                <p class="text-[#34495e] mb-8 text-center max-w-3xl mx-auto">A balanced view of the primary factors supporting an investment thesis alongside the key risks to consider.</p>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div class="bg-white p-6 rounded-lg shadow-md">
-                        <h3 class="text-2xl font-semibold text-green-600 mb-4">Investment Thesis (Pros)</h3>
-                        <ul class="space-y-3">
-                            <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🌱</span><div><strong>Sustainability Leadership:</strong> First-mover advantage in recyclable packaging (MDO-PE tech) commanding premium pricing.</div></li>
-                            <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🏗️</span><div><strong>Beneficiary of Consolidation:</strong> Capturing market share as the industry shifts from unorganized to organized players.</div></li>
-                            <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🚀</span><div><strong>Export Growth Engine:</strong> Strong 31.5% CAGR in exports, benefiting from global China+1 supply chain diversification.</div></li>
-                            <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">💡</span><div><strong>Technology-Driven Margins:</strong> High-end European machinery and backward integration into rigid boxes and films to boost profitability.</div></li>
-                            <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">💰</span><div><strong>Strong Financial Trajectory:</strong> Consistent 18.5% 5-year revenue CAGR with improving ROE and a deleveraging balance sheet.</div></li>
-                        </ul>
-                    </div>
-                    <div class="bg-white p-6 rounded-lg shadow-md">
-                        <h3 class="text-2xl font-semibold text-red-600 mb-4">Antithesis (Risks)</h3>
-                        <ul class="space-y-3">
-                            <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🧱</span><div><strong>High Capital Intensity:</strong> Significant ongoing capex and an inefficient working capital cycle could strain cash flows.</div></li>
-                            <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🎢</span><div><strong>Cyclical Industry Exposure:</strong> Heavy dependence on FMCG and tobacco sectors makes the company vulnerable to consumption slowdowns.</div></li>
-                            <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">⚔️</span><div><strong>Competitive Pressure:</strong> Intense competition from organized and unorganized players may constrain pricing power and margins.</div></li>
-                            <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">⚖️</span><div><strong>Valuation Concerns:</strong> Trading at a premium to the industry median, suggesting high growth expectations are already priced in.</div></li>
-                            <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🔄</span><div><strong>Technology Transition Risks:</strong> Investments in new sustainable tech face risks of slow market adoption or obsolescence.</div></li>
-                        </ul>
-                    </div>
+        <section id="rationale" data-icon="👍👎" data-title="Investment Rationale">
+            <h2 class="text-4xl font-bold text-[#2c3e50] mb-4 text-center">Investment Rationale</h2>
+            <p class="text-[#34495e] mb-8 text-center max-w-3xl mx-auto">A balanced view of the primary factors supporting an investment thesis alongside the key risks to consider.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-2xl font-semibold text-green-600 mb-4">Investment Thesis (Pros)</h3>
+                    <ul class="space-y-3">
+                        <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🌱</span><div><strong>Sustainability Leadership:</strong> First-mover advantage in recyclable packaging (MDO-PE tech) commanding premium pricing.</div></li>
+                        <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🏗️</span><div><strong>Beneficiary of Consolidation:</strong> Capturing market share as the industry shifts from unorganized to organized players.</div></li>
+                        <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🚀</span><div><strong>Export Growth Engine:</strong> Strong 31.5% CAGR in exports, benefiting from global China+1 supply chain diversification.</div></li>
+                        <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">💡</span><div><strong>Technology-Driven Margins:</strong> High-end European machinery and backward integration into rigid boxes and films to boost profitability.</div></li>
+                        <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">💰</span><div><strong>Strong Financial Trajectory:</strong> Consistent 18.5% 5-year revenue CAGR with improving ROE and a deleveraging balance sheet.</div></li>
+                    </ul>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-2xl font-semibold text-red-600 mb-4">Antithesis (Risks)</h3>
+                    <ul class="space-y-3">
+                        <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🧱</span><div><strong>High Capital Intensity:</strong> Significant ongoing capex and an inefficient working capital cycle could strain cash flows.</div></li>
+                        <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🎢</span><div><strong>Cyclical Industry Exposure:</strong> Heavy dependence on FMCG and tobacco sectors makes the company vulnerable to consumption slowdowns.</div></li>
+                        <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">⚔️</span><div><strong>Competitive Pressure:</strong> Intense competition from organized and unorganized players may constrain pricing power and margins.</div></li>
+                        <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">⚖️</span><div><strong>Valuation Concerns:</strong> Trading at a premium to the industry median, suggesting high growth expectations are already priced in.</div></li>
+                        <li class="rationale-item flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🔄</span><div><strong>Technology Transition Risks:</strong> Investments in new sustainable tech face risks of slow market adoption or obsolescence.</div></li>
+                    </ul>
                 </div>
             </div>
         </section>
-
-    </main>
+    </div>
     
+    <!-- This modal is specifically for the MACHINE details, separate from the main one -->
     <div id="machine-modal" class="modal-overlay">
-        <div class="modal-content">
-            <div class="flex justify-between items-center mb-4">
-                <h3 id="modal-title" class="text-2xl font-bold"></h3>
-                <button id="modal-close" class="text-3xl font-light">&times;</button>
+        <div class="modal-container !w-[600px]">
+             <div class="modal-header">
+                <h3 id="machine-modal-title" class="text-2xl font-bold"></h3>
+                <button id="machine-modal-close" class="text-3xl font-light">&times;</button>
             </div>
-            <div id="modal-body" class="text-sm text-gray-700 space-y-2"></div>
+            <div id="machine-modal-body" class="modal-body text-gray-700 space-y-2"></div>
         </div>
     </div>
 
+    <footer class="text-center p-4 mt-8">
+        <p class="text-xs text-gray-500">Disclaimer: This presentation is for informational and educational purposes only and should not be considered as investment advice. The information provided is not intended to be a recommendation to buy or sell any specific security. We may or may not hold positions in the stocks discussed, and any such positions are for our personal portfolios and do not reflect investment advice. Investors should conduct their own due diligence and consult with a financial advisor before making any investment decisions.</p>
+    </footer>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        
-        // Charting logic
-        const historicalData = {
-            labels: ['FY21', 'FY22', 'FY23', 'FY24', 'FY25', 'FY26 (E)'],
-            datasets: [
-                {
-                    label: 'Revenue (₹ Cr)',
-                    data: [904, 1086, 1475, 1541, 1770, 2036],
-                    backgroundColor: '#34495e',
-                    yAxisID: 'y',
-                    order: 2
-                },
-                {
-                    label: 'PAT (₹ Cr)',
-                    data: [33, 47, 110, 99, 143, 181],
-                    backgroundColor: '#f1c40f',
-                    yAxisID: 'y',
-                    order: 2
-                },
-                {
-                    type: 'line',
-                    label: 'EBITDA Margin (%)',
-                    data: [15.0, 14.5, 17.8, 17.0, 17.3, 17.0],
-                    borderColor: '#e74c3c',
-                    backgroundColor: '#e74c3c',
-                    yAxisID: 'y1',
-                    tension: 0.2,
-                    order: 1
-                }
-            ]
-        };
+        // --- Globals and State ---
+        let currentView = 'cards'; // 'cards' or 'scroll'
+        let activeCharts = []; // To hold all active Chart.js instances
+        let isScrollContentInitialized = false;
 
-        const historicalCanvas = document.getElementById('historicalPerformanceChart');
-        if(historicalCanvas) {
-            new Chart(historicalCanvas.getContext('2d'), {
-                type: 'bar',
-                data: historicalData,
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            type: 'linear',
-                            display: true,
-                            position: 'left',
-                            title: { display: true, text: 'Amount (₹ Cr)' }
-                        },
-                        y1: {
-                            type: 'linear',
-                            display: true,
-                            position: 'right',
-                            grid: { drawOnChartArea: false },
-                            title: { display: true, text: 'EBITDA Margin (%)' }
-                        }
-                    },
-                    plugins: {
-                        tooltip: { mode: 'index', intersect: false }
-                    }
-                }
-            });
-        }
-
-
-        const dupontData = {
-            labels: ['FY22', 'FY23', 'FY24', 'FY25'],
-            datasets: [
-                {
-                    label: 'Return on Equity (%)',
-                    data: [13.8, 25.2, 19.2, 22.3],
-                    borderColor: '#2c3e50',
-                    backgroundColor: '#2c3e50',
-                    tension: 0.1
-                },
-                {
-                    label: 'Net Profit Margin (%)',
-                    data: [4.3, 7.5, 6.4, 8.1],
-                    borderColor: '#3498db',
-                    backgroundColor: '#3498db',
-                    tension: 0.1
-                },
-                {
-                    label: 'Asset Turnover (x)',
-                    data: [1.0, 1.2, 1.2, 1.1],
-                    borderColor: '#2ecc71',
-                    backgroundColor: '#2ecc71',
-                    tension: 0.1
-                },
-                {
-                    label: 'Equity Multiplier (x)',
-                    data: [3.2, 2.8, 2.5, 2.5],
-                    borderColor: '#e74c3c',
-                    backgroundColor: '#e74c3c',
-                    tension: 0.1
-                }
-            ]
-        };
-
-        const dupontCanvas = document.getElementById('dupontChart');
-        if (dupontCanvas) {
-            new Chart(dupontCanvas.getContext('2d'), {
-                type: 'line',
-                data: dupontData,
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    interaction: { mode: 'index', intersect: false },
-                    scales: {
-                        y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Value' } }
-                    },
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let label = context.dataset.label || '';
-                                    if (label) label += ': ';
-                                    if (context.parsed.y !== null) {
-                                        let value = context.dataset.label.includes('(x)') ? context.parsed.y.toFixed(1) : context.parsed.y;
-                                        label += value;
-                                        if (context.dataset.label.includes('%')) label += '%';
-                                        else if (context.dataset.label.includes('(x)')) label += 'x';
-                                    }
-                                    return label;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        const productMixCanvas = document.getElementById('productMixChart');
-        if (productMixCanvas) {
-            new Chart(productMixCanvas.getContext('2d'), {
-                type: 'doughnut',
-                data: {
-                    labels: ['Folding Cartons', 'Flexible Packaging'],
-                    datasets: [{ data: [80, 20], backgroundColor: ['#3498db', '#2ecc71'], borderColor: '#ecf0f1', borderWidth: 4 }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-            });
-        }
-        
-        const regionMixCanvas = document.getElementById('regionMixChart');
-        if (regionMixCanvas) {
-            new Chart(regionMixCanvas.getContext('2d'), {
-                type: 'doughnut',
-                data: {
-                    labels: ['Domestic', 'Exports'],
-                    datasets: [{ data: [65, 35], backgroundColor: ['#34495e', '#e74c3c'], borderColor: '#ecf0f1', borderWidth: 4 }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
-            });
-        }
-
-        const peerData = {
-            labels: ['TCPL', 'Huhtamaki', 'Uflex', 'Polyplex', 'EPL Ltd', 'Cosmo First'],
-            'p/e': { data: [23.82, 23.11, 17.97, 17, 20.56, 22.16], label: 'P/E Ratio' },
-            'roce': { data: [19.89, 7.14, 7.75, 7.19, 17.49, 9.77], label: 'RoCE (%)' },
-            'roe': { data: [24.39, 5.15, 3.29, 5.75, 16.28, 9.26], label: 'RoE (%)' },
-            'opm': { data: [16.6, 5.04, 11.25, 10.11, 19.84, 9.94], label: 'OPM (%)' },
-            'd/e': { data: [1.01, 0.12, 1.13, 0.23, 0.34, 0.98], label: 'D/E Ratio' }
-        };
-
-        const peerComparisonCanvas = document.getElementById('peerComparisonChart');
-        if (peerComparisonCanvas) {
-            const peerChart = new Chart(peerComparisonCanvas.getContext('2d'), {
-                type: 'bar',
-                data: {
-                    labels: peerData.labels,
-                    datasets: [{ label: peerData['p/e'].label, data: peerData['p/e'].data, backgroundColor: ['#2ecc71', '#3498db', '#34495e', '#9b59b6', '#f1c40f', '#e74c3c'] }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', scales: { x: { beginAtZero: true } }, plugins: { legend: { display: false } } }
-            });
-
-            document.getElementById('peer-metric-selector').addEventListener('change', (e) => {
-                const selectedMetric = e.target.value;
-                peerChart.data.datasets[0].data = peerData[selectedMetric].data;
-                peerChart.data.datasets[0].label = peerData[selectedMetric].label;
-                peerChart.update();
-            });
-        }
-        
-        const marketTabs = document.getElementById('market-tabs');
-        const marketContents = document.querySelectorAll('.market-content');
-        if (marketTabs) {
-            marketTabs.addEventListener('click', (e) => {
-                if (e.target.tagName === 'BUTTON') {
-                    marketTabs.querySelectorAll('button').forEach(btn => {
-                        btn.classList.remove('text-[#3498db]', 'border-[#3498db]');
-                        btn.classList.add('text-gray-500');
-                    });
-                    e.target.classList.add('text-[#3498db]', 'border-[#3498db]');
-                    e.target.classList.remove('text-gray-500');
-
-                    const contentId = e.target.getAttribute('data-content');
-                    marketContents.forEach(content => {
-                        content.id === `${contentId}-content` ? content.classList.remove('hidden') : content.classList.add('hidden');
-                    });
-                }
-            });
-        }
-        
-        const valuationCanvas = document.getElementById('valuationChart');
-        if (valuationCanvas) {
-            const valuationChart = new Chart(valuationCanvas.getContext('2d'), {
-                type: 'bar',
-                data: {
-                    labels: ['Bear', 'Base', 'Bull', 'Your Scenario'],
-                    datasets: [{
-                        label: 'Projected Share Price',
-                        data: [],
-                        backgroundColor: ['#e74c3c', '#34495e', '#2ecc71', '#3498db']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: false, title: { display: true, text: 'Projected Price (₹)' } } },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    let mainLabel = `Price: ₹${context.parsed.y.toFixed(0)}`;
-                                    const scenario = context.label.toLowerCase().replace(' ', '');
-                                    const year = document.querySelector('.year-btn.active').dataset.year;
-                                    
-                                    let details;
-                                    if (scenario === 'yourscenario') {
-                                        details = customValuationCache[year];
-                                    } else {
-                                        const assumptions = valuationAssumptions[scenario];
-                                        details = {
-                                            growth: `${assumptions.growth}%`,
-                                            margin: `${assumptions.margin.toFixed(1)}%`,
-                                            pe: `${assumptions.pe}x`
-                                        };
-                                    }
-
-                                    if (details) return [mainLabel, `Growth: ${details.growth}`, `Margin: ${details.margin}`, `P/E: ${details.pe}`];
-                                    return mainLabel;
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-            
-            const valuationAssumptions = {
-                bear: { growth: 12, margin: 15.0, pe: 14 },
-                base: { growth: 15, margin: 16.0, pe: 17 },
-                bull: { growth: 18, margin: 17.0, pe: 20 },
-            };
-            let customValuationCache = {};
-
-            const salesSlider = document.getElementById('sales-growth-slider');
-            const marginSlider = document.getElementById('margin-slider');
-            const peSlider = document.getElementById('pe-multiple-slider');
-            const salesValue = document.getElementById('sales-growth-value');
-            const marginValue = document.getElementById('margin-value');
-            const peValue = document.getElementById('pe-multiple-value');
-            const customValuationOutput = document.getElementById('custom-valuation-output');
-            const customValuationTitle = document.getElementById('custom-valuation-title');
-            const yearSelector = document.getElementById('year-selector');
-
-            function calculatePrice(year, salesCAGR, ebitdaMargin, peMultiple) {
-                const yearsToProject = parseInt(year) - 25;
-                const baseRevenue = 1770; 
-                const projectedRevenue = baseRevenue * Math.pow(1 + (salesCAGR / 100), yearsToProject);
-                const projectedEBITDA = projectedRevenue * (ebitdaMargin / 100);
-                const depreciationAndInterest = 130; 
-                const pbt = projectedEBITDA - depreciationAndInterest;
-                const tax = pbt * 0.26; 
-                const pat = pbt - tax;
-                const sharesOutstanding = 0.91; 
-                const projectedEPS = pat / sharesOutstanding; 
-                return projectedEPS * peMultiple;
-            }
-
-            function updateValuationChart(year) {
-                const customGrowth = parseFloat(salesSlider.value);
-                const customMargin = parseFloat(marginSlider.value);
-                const customPE = parseFloat(peSlider.value);
-
-                salesValue.textContent = `${customGrowth}%`;
-                marginValue.textContent = `${customMargin.toFixed(1)}%`;
-                peValue.textContent = `${customPE}x`;
-
-                const bearPrice = calculatePrice(year, valuationAssumptions.bear.growth, valuationAssumptions.bear.margin, valuationAssumptions.bear.pe);
-                const basePrice = calculatePrice(year, valuationAssumptions.base.growth, valuationAssumptions.base.margin, valuationAssumptions.base.pe);
-                const bullPrice = calculatePrice(year, valuationAssumptions.bull.growth, valuationAssumptions.bull.margin, valuationAssumptions.bull.pe);
-                const customPrice = calculatePrice(year, customGrowth, customMargin, customPE);
-                
-                customValuationTitle.textContent = `Your Custom Projected Price (FY${year})`;
-                customValuationOutput.textContent = `₹${customPrice.toFixed(0)}`;
-                
-                customValuationCache[year] = { growth: `${customGrowth}%`, margin: `${customMargin.toFixed(1)}%`, pe: `${customPE}x` };
-
-                valuationChart.data.datasets[0].data = [bearPrice, basePrice, bullPrice, customPrice];
-                valuationChart.options.scales.y.title.text = `Projected Price (FY${year})`;
-                valuationChart.update();
-            }
-
-            yearSelector.addEventListener('click', (e) => {
-                if (e.target.tagName === 'BUTTON') {
-                    yearSelector.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
-                    e.target.classList.add('active');
-                    updateValuationChart(e.target.dataset.year);
-                }
-            });
-
-            const sliders = [salesSlider, marginSlider, peSlider];
-            sliders.forEach(slider => {
-                slider.addEventListener('input', () => {
-                    const activeYear = yearSelector.querySelector('.active').dataset.year;
-                    updateValuationChart(activeYear);
-                });
-            });
-
-            updateValuationChart('26');
-        }
-
-        // Growth Card Interactivity
-        const growthCards = document.querySelectorAll('.growth-card');
-        growthCards.forEach(card => {
-            card.addEventListener('click', () => {
-                const content = card.querySelector('.details-content');
-                if (content.style.maxHeight) {
-                    content.style.maxHeight = null;
-                } else {
-                    // Close other open cards before opening the new one
-                    // growthCards.forEach(otherCard => {
-                    //     otherCard.querySelector('.details-content').style.maxHeight = null;
-                    // });
-                    content.style.maxHeight = content.scrollHeight + "px";
-                }
-            });
-        });
-        
-        // MACHINE Modal Interactivity
-        const machineModal = document.getElementById('machine-modal');
+        // --- DOM Element References ---
+        const sectionStorage = document.getElementById('section-storage');
+        const dashboardGrid = document.getElementById('dashboard-grid');
+        const mainModal = document.getElementById('main-modal');
         const modalTitle = document.getElementById('modal-title');
         const modalBody = document.getElementById('modal-body');
         const modalClose = document.getElementById('modal-close');
-        
-        const machineData = {
-            m: { title: '🧠 M - Mega Tailwinds & Trends', content: `Captures mega trend of FMCG, export, and sustainable packaging growth in India and abroad.` },
-            a: { title: '💰 A - Price Volume Action', content: `Top stock price performer among comparable listed packaging peers.` },
-            c: { title: '🛡️ C - Competitive Advantage - Moat', content: `Strong competitive advantage via product diversification, cost leadership, and pan-India footprint.` },
-            h: { title: '📈 H - High ROCE - Emerging & Quality', content: `Sector-leading, consistent high ROCE driven by asset and process efficiency.` },
-            i: { title: '🧮 I - Improvement in Company', content: `Continuous improvement in mix, efficiency, and scale, with persistent profit/capacity upgrades.` },
-            n: { title: '📰 N - New - Co. Getting into More things', content: `Early leadership in mono-materials, new export markets, and vertical expansion.` },
-            e: { title: '⚡ E - Execution in Earnings Growth Triggers', content: `Reliably delivers on earnings growth triggers through disciplined execution and capital allocation.` }
-        };
+        const viewToggleButton = document.getElementById('view-toggle-btn');
+        const cardViewContainer = document.getElementById('card-view-container');
+        const scrollableViewContainer = document.getElementById('scrollable-view-container');
+        const headerSubtitle = document.getElementById('header-subtitle');
 
-        document.querySelectorAll('.machine-header').forEach(header => {
-            header.addEventListener('click', (e) => {
-                const key = e.target.dataset.machine;
-                const data = machineData[key];
-                modalTitle.textContent = data.title;
-                modalBody.textContent = data.content;
-                machineModal.classList.add('visible');
+        // --- Core Functions ---
+
+        /**
+         * Populates the dashboard with cards based on sections in storage.
+         */
+        function createDashboardCards() {
+            const sections = sectionStorage.querySelectorAll('section');
+            sections.forEach(section => {
+                const card = document.createElement('div');
+                card.className = 'dashboard-card';
+                card.dataset.target = `#${section.id}`;
+                
+                const icon = section.dataset.icon || '📁';
+                const title = section.dataset.title || section.querySelector('h2').textContent;
+
+                card.innerHTML = `
+                    <div class="card-icon">${icon}</div>
+                    <h3 class="text-lg font-semibold text-slate-800">${title}</h3>
+                `;
+                dashboardGrid.appendChild(card);
             });
-        });
+        }
 
-        modalClose.addEventListener('click', () => machineModal.classList.remove('visible'));
-        machineModal.addEventListener('click', (e) => {
-            if (e.target === machineModal) {
-                machineModal.classList.remove('visible');
+        /**
+         * Populates the scrollable view container with all sections.
+         */
+        function populateScrollableView() {
+            if (isScrollContentInitialized) return;
+            const sections = sectionStorage.querySelectorAll('section');
+            sections.forEach(section => {
+                const clone = section.cloneNode(true);
+                scrollableViewContainer.appendChild(clone);
+            });
+            initializeAllScripts(scrollableViewContainer);
+            isScrollContentInitialized = true;
+        }
+
+        /**
+         * Toggles between 'cards' and 'scroll' views.
+         */
+        function toggleView() {
+            // Destroy all active charts before switching to prevent memory leaks
+            activeCharts.forEach(chart => chart.destroy());
+            activeCharts = [];
+
+            if (currentView === 'cards') {
+                // Switch to Scroll View
+                currentView = 'scroll';
+                cardViewContainer.classList.add('hidden');
+                scrollableViewContainer.classList.remove('hidden');
+                viewToggleButton.textContent = 'Card View';
+                headerSubtitle.textContent = 'Scroll to a section';
+                populateScrollableView();
+            } else {
+                // Switch to Card View
+                currentView = 'cards';
+                cardViewContainer.classList.remove('hidden');
+                scrollableViewContainer.classList.add('hidden');
+                viewToggleButton.textContent = 'Scrollable View';
+                headerSubtitle.textContent = 'Click a section to view details';
+            }
+        }
+
+        /**
+         * Initializes all interactive elements (charts, etc.) within a given container.
+         * @param {HTMLElement} container - The parent element to search within.
+         */
+        function initializeAllScripts(container) {
+            // --- Charting logic ---
+            // It's crucial to find the canvas within the `container`
+            const historicalCanvas = container.querySelector('#historicalPerformanceChart');
+            if(historicalCanvas) {
+                const historicalData = { labels: ['FY21', 'FY22', 'FY23', 'FY24', 'FY25', 'FY26 (E)'], datasets: [ { label: 'Revenue (₹ Cr)', data: [904, 1086, 1475, 1541, 1770, 2036], backgroundColor: '#34495e', yAxisID: 'y', order: 2 }, { label: 'PAT (₹ Cr)', data: [33, 47, 110, 99, 143, 181], backgroundColor: '#f1c40f', yAxisID: 'y', order: 2 }, { type: 'line', label: 'EBITDA Margin (%)', data: [15.0, 14.5, 17.8, 17.0, 17.3, 17.0], borderColor: '#e74c3c', backgroundColor: '#e74c3c', yAxisID: 'y1', tension: 0.2, order: 1 } ] };
+                const chart = new Chart(historicalCanvas.getContext('2d'), { type: 'bar', data: historicalData, options: { responsive: true, maintainAspectRatio: false, scales: { y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Amount (₹ Cr)' } }, y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'EBITDA Margin (%)' } } }, plugins: { tooltip: { mode: 'index', intersect: false } } } });
+                activeCharts.push(chart);
+            }
+
+            const dupontCanvas = container.querySelector('#dupontChart');
+            if (dupontCanvas) {
+                const dupontData = { labels: ['FY22', 'FY23', 'FY24', 'FY25'], datasets: [ { label: 'Return on Equity (%)', data: [13.8, 25.2, 19.2, 22.3], borderColor: '#2c3e50', backgroundColor: '#2c3e50', tension: 0.1 }, { label: 'Net Profit Margin (%)', data: [4.3, 7.5, 6.4, 8.1], borderColor: '#3498db', backgroundColor: '#3498db', tension: 0.1 }, { label: 'Asset Turnover (x)', data: [1.0, 1.2, 1.2, 1.1], borderColor: '#2ecc71', backgroundColor: '#2ecc71', tension: 0.1 }, { label: 'Equity Multiplier (x)', data: [3.2, 2.8, 2.5, 2.5], borderColor: '#e74c3c', backgroundColor: '#e74c3c', tension: 0.1 } ] };
+                const chart = new Chart(dupontCanvas.getContext('2d'), { type: 'line', data: dupontData, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Value' } } }, plugins: { tooltip: { callbacks: { label: function(c) { let l = c.dataset.label || ''; if (l) l += ': '; if (c.parsed.y !== null) { let v = c.dataset.label.includes('(x)') ? c.parsed.y.toFixed(1) : c.parsed.y; l += v; if (c.dataset.label.includes('%')) l += '%'; else if (c.dataset.label.includes('(x)')) l += 'x'; } return l; } } } } } });
+                activeCharts.push(chart);
+            }
+
+            const productMixCanvas = container.querySelector('#productMixChart');
+            if (productMixCanvas) {
+                const chart = new Chart(productMixCanvas.getContext('2d'), { type: 'doughnut', data: { labels: ['Folding Cartons', 'Flexible Packaging'], datasets: [{ data: [80, 20], backgroundColor: ['#3498db', '#2ecc71'], borderColor: '#f8fafc', borderWidth: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+                activeCharts.push(chart);
+            }
+            
+            const regionMixCanvas = container.querySelector('#regionMixChart');
+            if (regionMixCanvas) {
+                const chart = new Chart(regionMixCanvas.getContext('2d'), { type: 'doughnut', data: { labels: ['Domestic', 'Exports'], datasets: [{ data: [65, 35], backgroundColor: ['#34495e', '#e74c3c'], borderColor: '#f8fafc', borderWidth: 4 }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } } });
+                activeCharts.push(chart);
+            }
+
+            const peerComparisonCanvas = container.querySelector('#peerComparisonChart');
+            if (peerComparisonCanvas) {
+                const peerData = { labels: ['TCPL', 'Huhtamaki', 'Uflex', 'Polyplex', 'EPL Ltd', 'Cosmo First'], 'p/e': { data: [23.82, 23.11, 17.97, 17, 20.56, 22.16], label: 'P/E Ratio' }, 'roce': { data: [19.89, 7.14, 7.75, 7.19, 17.49, 9.77], label: 'RoCE (%)' }, 'roe': { data: [24.39, 5.15, 3.29, 5.75, 16.28, 9.26], label: 'RoE (%)' }, 'opm': { data: [16.6, 5.04, 11.25, 10.11, 19.84, 9.94], label: 'OPM (%)' }, 'd/e': { data: [1.01, 0.12, 1.13, 0.23, 0.34, 0.98], label: 'D/E Ratio' } };
+                const peerChart = new Chart(peerComparisonCanvas.getContext('2d'), { type: 'bar', data: { labels: peerData.labels, datasets: [{ label: peerData['p/e'].label, data: peerData['p/e'].data, backgroundColor: ['#2ecc71', '#3498db', '#34495e', '#9b59b6', '#f1c40f', '#e74c3c'] }] }, options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', scales: { x: { beginAtZero: true } }, plugins: { legend: { display: false } } } });
+                activeCharts.push(peerChart);
+                
+                const peerMetricSelector = container.querySelector('#peer-metric-selector');
+                if (peerMetricSelector) {
+                    peerMetricSelector.addEventListener('change', (e) => { 
+                        const selectedMetric = e.target.value; 
+                        peerChart.data.datasets[0].data = peerData[selectedMetric].data; 
+                        peerChart.data.datasets[0].label = peerData[selectedMetric].label; 
+                        peerChart.update(); 
+                    });
+                }
+            }
+            
+            const valuationCanvas = container.querySelector('#valuationChart');
+            if (valuationCanvas) {
+                const valuationChart = new Chart(valuationCanvas.getContext('2d'), { type: 'bar', data: { labels: ['Bear', 'Base', 'Bull', 'Your Scenario'], datasets: [{ label: 'Projected Share Price', data: [], backgroundColor: ['#e74c3c', '#34495e', '#2ecc71', '#3498db'] }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: false, title: { display: true, text: 'Projected Price (₹)' } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: function(c) { let mainLabel = `Price: ₹${c.parsed.y.toFixed(0)}`; const scenario = c.label.toLowerCase().replace(' ', ''); const year = container.querySelector('.year-btn.active').dataset.year; let details; if (scenario === 'yourscenario') { details = customValuationCache[year]; } else { const assumptions = valuationAssumptions[scenario]; details = { growth: `${assumptions.growth}%`, margin: `${assumptions.margin.toFixed(1)}%`, pe: `${assumptions.pe}x` }; } if (details) return [mainLabel, `Growth: ${details.growth}`, `Margin: ${details.margin}`, `P/E: ${details.pe}`]; return mainLabel; } } } } } });
+                activeCharts.push(valuationChart);
+                const valuationAssumptions = { bear: { growth: 12, margin: 15.0, pe: 14 }, base: { growth: 15, margin: 16.0, pe: 17 }, bull: { growth: 18, margin: 17.0, pe: 20 }, }; let customValuationCache = {};
+                const salesSlider = container.querySelector('#sales-growth-slider'); const marginSlider = container.querySelector('#margin-slider'); const peSlider = container.querySelector('#pe-multiple-slider'); const salesValue = container.querySelector('#sales-growth-value'); const marginValue = container.querySelector('#margin-value'); const peValue = container.querySelector('#pe-multiple-value'); const customValuationOutput = container.querySelector('#custom-valuation-output'); const customValuationTitle = container.querySelector('#custom-valuation-title'); const yearSelector = container.querySelector('#year-selector');
+                function calculatePrice(year, salesCAGR, ebitdaMargin, peMultiple) { const y = parseInt(year) - 25; const r = 1770 * Math.pow(1 + (salesCAGR / 100), y); const e = r * (ebitdaMargin / 100); const p = e - 130; const t = p * 0.26; const pat = p - t; return (pat / 0.91) * peMultiple; }
+                function updateValuationChart(year) { const g = parseFloat(salesSlider.value); const m = parseFloat(marginSlider.value); const p = parseFloat(peSlider.value); salesValue.textContent = `${g}%`; marginValue.textContent = `${m.toFixed(1)}%`; peValue.textContent = `${p}x`; const bear = calculatePrice(year, valuationAssumptions.bear.growth, valuationAssumptions.bear.margin, valuationAssumptions.bear.pe); const base = calculatePrice(year, valuationAssumptions.base.growth, valuationAssumptions.base.margin, valuationAssumptions.base.pe); const bull = calculatePrice(year, valuationAssumptions.bull.growth, valuationAssumptions.bull.margin, valuationAssumptions.bull.pe); const custom = calculatePrice(year, g, m, p); customValuationTitle.textContent = `Your Custom Projected Price (FY${year})`; customValuationOutput.textContent = `₹${custom.toFixed(0)}`; customValuationCache[year] = { growth: `${g}%`, margin: `${m.toFixed(1)}%`, pe: `${p}x` }; valuationChart.data.datasets[0].data = [bear, base, bull, custom]; valuationChart.options.scales.y.title.text = `Projected Price (FY${year})`; valuationChart.update(); }
+                yearSelector.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { yearSelector.querySelectorAll('button').forEach(btn => btn.classList.remove('active')); e.target.classList.add('active'); updateValuationChart(e.target.dataset.year); } });
+                [salesSlider, marginSlider, peSlider].forEach(slider => { slider.addEventListener('input', () => { const activeYear = yearSelector.querySelector('.active').dataset.year; updateValuationChart(activeYear); }); });
+                updateValuationChart('26');
+            }
+
+            // --- Other interactive elements ---
+            const marketTabs = container.querySelector('#market-tabs');
+            if (marketTabs) {
+                const marketContents = container.querySelectorAll('.market-content');
+                marketTabs.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { marketTabs.querySelectorAll('button').forEach(btn => { btn.classList.remove('text-[#3498db]', 'border-[#3498db]'); btn.classList.add('text-gray-500'); }); e.target.classList.add('text-[#3498db]', 'border-[#3498db]'); e.target.classList.remove('text-gray-500'); const contentId = e.target.getAttribute('data-content'); marketContents.forEach(content => { content.id === `${contentId}-content` ? content.classList.remove('hidden') : content.classList.add('hidden'); }); } });
+            }
+            
+            const growthCards = container.querySelectorAll('.growth-card');
+            growthCards.forEach(card => { card.addEventListener('click', () => { const content = card.querySelector('.details-content'); content.style.maxHeight = content.style.maxHeight ? null : content.scrollHeight + "px"; }); });
+            
+            // --- MACHINE Modal Logic ---
+            const machineModal = document.getElementById('machine-modal');
+            const machineModalTitle = document.getElementById('machine-modal-title');
+            const machineModalBody = document.getElementById('machine-modal-body');
+            const machineModalClose = document.getElementById('machine-modal-close');
+            const machineData = { m: { title: '🧠 M - Mega Tailwinds & Trends', content: `Captures mega trend of FMCG, export, and sustainable packaging growth in India and abroad.` }, a: { title: '💰 A - Price Volume Action', content: `Top stock price performer among comparable listed packaging peers.` }, c: { title: '🛡️ C - Competitive Advantage - Moat', content: `Strong competitive advantage via product diversification, cost leadership, and pan-India footprint.` }, h: { title: '📈 H - High ROCE - Emerging & Quality', content: `Sector-leading, consistent high ROCE driven by asset and process efficiency.` }, i: { title: '🧮 I - Improvement in Company', content: `Continuous improvement in mix, efficiency, and scale, with persistent profit/capacity upgrades.` }, n: { title: '📰 N - New - Co. Getting into More things', content: `Early leadership in mono-materials, new export markets, and vertical expansion.` }, e: { title: '⚡ E - Execution in Earnings Growth Triggers', content: `Reliably delivers on earnings growth triggers through disciplined execution and capital allocation.` } };
+            container.querySelectorAll('.machine-header').forEach(header => { header.addEventListener('click', (e) => { const key = e.target.dataset.machine; const data = machineData[key]; machineModalTitle.textContent = data.title; machineModalBody.textContent = data.content; machineModal.classList.add('visible'); }); });
+            machineModalClose.addEventListener('click', () => machineModal.classList.remove('visible'));
+            machineModal.addEventListener('click', (e) => { if (e.target === machineModal) machineModal.classList.remove('visible'); });
+        }
+
+        // --- Event Listeners ---
+        viewToggleButton.addEventListener('click', toggleView);
+
+        dashboardGrid.addEventListener('click', (e) => {
+            const card = e.target.closest('.dashboard-card');
+            if (card) {
+                const targetId = card.dataset.target;
+                const section = sectionStorage.querySelector(targetId);
+                if (section) {
+                    modalTitle.textContent = section.dataset.title || section.querySelector('h2').textContent;
+                    modalBody.innerHTML = section.innerHTML;
+                    mainModal.classList.add('visible');
+                    initializeAllScripts(modalBody);
+                }
             }
         });
 
+        const closeModal = () => {
+            mainModal.classList.remove('visible');
+            activeCharts.forEach(chart => chart.destroy());
+            activeCharts = [];
+            modalBody.innerHTML = '';
+        };
+
+        modalClose.addEventListener('click', closeModal);
+        mainModal.addEventListener('click', (e) => {
+            if (e.target === mainModal) closeModal();
+        });
+
+        // --- Initial Setup ---
+        createDashboardCards();
     });
 </script>
 
