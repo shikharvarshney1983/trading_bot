@@ -153,6 +153,10 @@ def logout():
 def tcpl():
     return render_template('tcplanalysis.html')
 
+@app.route('/tcpl_new')
+def tcpl_new():
+    return render_template('tcplanalysis_new.html')
+
 # --- Admin Routes ---
 @app.route('/admin')
 @login_required
