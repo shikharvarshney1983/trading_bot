@@ -945,15 +945,27 @@ def execute_strategy_for_user(user_id):
                 if ticker in portfolio: continue
 
                 stock_data = all_data.get(ticker)
-                if stock_data is None or stock_data.empty: continue
+                if stock_data is None or len(stock_data) < 2: continue
                 
                 latest_data = stock_data.iloc[-1]
+                previous_data = stock_data.iloc[-2]
                 
+                # --- UPDATED BUY LOGIC ---
                 is_ema_crossover = latest_data['EMA_11'] > latest_data['EMA_21']
                 is_strong_momentum = latest_data['RS'] > 1.0 and latest_data['ADX_14'] > 25 and latest_data['RSI_14'] > 55
                 is_volume_spike = latest_data['Volume'] > (1.25 * latest_data.get('Volume_MA10', 0))
                 
-                if is_ema_crossover and is_strong_momentum and is_volume_spike:
+                # New conditions from screener
+                is_making_higher_close = latest_data['Close'] > previous_data['Close']
+                intraday_move_pct = ((latest_data['Close'] - latest_data['Open']) / latest_data['Open']) * 100
+                is_not_major_reversal = intraday_move_pct > -1.0
+                
+                if (is_ema_crossover and 
+                    is_strong_momentum and 
+                    is_volume_spike and
+                    is_making_higher_close and
+                    is_not_major_reversal):
+
                     target_investment = base_capital * tranches["1"]
                     buy_price = latest_data['Close']
                     quantity = round(target_investment / buy_price) if buy_price > 0 else 0
