@@ -25,6 +25,9 @@
         <button class="nav-link active" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary" type="button" role="tab">Dashboard</button>
     </li>
     <li class="nav-item" role="presentation">
+        <a class="nav-link" href="{{ url_for('backtest_page') }}">Backtest</a>
+    </li>
+    <li class="nav-item" role="presentation">
         <button class="nav-link" id="calendar-tab" data-bs-toggle="tab" data-bs-target="#calendar-view" type="button" role="tab">P/L Calendar</button>
     </li>
     <li class="nav-item" role="presentation">
@@ -224,6 +227,20 @@
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // --- URL Definitions ---
+    // Use Jinja2 to render the correct API endpoints. This avoids parsing errors.
+    const URLS = {
+        getStatus: "{{ url_for('get_status') }}",
+        getDynamicData: "{{ url_for('get_dynamic_data') }}",
+        saveSettings: "{{ url_for('save_settings') }}",
+        saveSchedule: "{{ url_for('save_schedule_settings') }}",
+        updateBalance: "{{ url_for('update_my_balance') }}",
+        changePassword: "{{ url_for('change_my_password') }}",
+        saveTelegramId: "{{ url_for('save_telegram_id') }}",
+        runStrategy: "{{ url_for('run_strategy') }}",
+        resetPortfolio: "{{ url_for('reset_portfolio') }}"
+    };
+
     const formatCurrency = (val) => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(val);
     const pnlColor = (val) => val >= 0 ? 'text-success' : 'text-danger';
 
@@ -239,7 +256,6 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('stat-avg-win').innerHTML = `<span class="text-success">${formatCurrency(data.stats.avg_win)}</span>`;
         document.getElementById('stat-avg-loss').innerHTML = `<span class="text-danger">${formatCurrency(data.stats.avg_loss)}</span>`;
         
-        // Update cash balance in the account section
         document.getElementById('cashBalance').textContent = formatCurrency(data.stats.cash_balance);
 
         // Portfolio
@@ -282,13 +298,11 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
         
-        // P&L Calendar Data
         dailyPnlData = data.calendar_pnl;
         renderCalendar();
     }
 
     function updateSettingsUI(settings) {
-        // Populate Settings Tab
         document.getElementById('baseCapital').value = settings.base_capital;
         document.getElementById('brokerage').value = settings.brokerage_per_trade;
         document.getElementById('maxPositions').value = settings.max_open_positions;
@@ -305,7 +319,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const month = calendarDate.getMonth();
         const year = calendarDate.getFullYear();
         document.getElementById('month-year').textContent = `${calendarDate.toLocaleString('default', { month: 'long' })} ${year}`;
-
         const firstDay = new Date(year, month, 1).getDay();
         const daysInMonth = new Date(year, month + 1, 0).getDate();
 
@@ -324,11 +337,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 pnlHtml = `<div class="pnl ${pnlColor(pnl)}" title="${formatCurrency(pnl)}">${formatCurrency(pnl)}</div>`;
             }
 
-            calendarEl.innerHTML += `
-                <div class="calendar-day ${dayClass}">
-                    <div class="day-number">${day}</div>
-                    ${pnlHtml}
-                </div>`;
+            calendarEl.innerHTML += `<div class="calendar-day ${dayClass}"><div class="day-number">${day}</div>${pnlHtml}</div>`;
         }
     }
     
@@ -341,7 +350,6 @@ document.addEventListener('DOMContentLoaded', function() {
         renderCalendar();
     });
 
-    // --- Event Listeners for Settings Tab ---
     document.getElementById('saveSettingsBtn').addEventListener('click', () => {
         const payload = {
             base_capital: document.getElementById('baseCapital').value,
@@ -351,7 +359,7 @@ document.addEventListener('DOMContentLoaded', function() {
             tranches: document.getElementById('tranches').value,
             interval: document.querySelector('input[name="interval"]:checked').value,
         };
-        fetch('/api/save_settings', {
+        fetch(URLS.saveSettings, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
@@ -359,10 +367,8 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     document.getElementById('saveScheduleBtn').addEventListener('click', () => {
-        const payload = {
-            auto_run_enabled: document.getElementById('autoRunEnabled').checked
-        };
-        fetch('/api/save_schedule_settings', {
+        const payload = { auto_run_enabled: document.getElementById('autoRunEnabled').checked };
+        fetch(URLS.saveSchedule, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
@@ -372,7 +378,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('addFundsBtn').addEventListener('click', () => {
         const amount = document.getElementById('addFundsAmount').value;
         if (!amount || amount <= 0) return alert("Please enter a valid amount.");
-        fetch('/api/update_my_balance', {
+        fetch(URLS.updateBalance, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ amount })
@@ -387,7 +393,7 @@ document.addEventListener('DOMContentLoaded', function() {
             current_password: document.getElementById('currentPassword').value,
             new_password: document.getElementById('newPassword').value,
         };
-        fetch('/api/change_my_password', {
+        fetch(URLS.changePassword, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload)
@@ -402,18 +408,16 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.getElementById('saveTelegramBtn').addEventListener('click', () => {
         const chatId = document.getElementById('telegramChatId').value;
-        fetch('/api/save_telegram_id', {
+        fetch(URLS.saveTelegramId, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ telegram_chat_id: chatId })
-        }).then(res => res.json()).then(data => {
-            alert(data.message);
-        });
+        }).then(res => res.json()).then(data => alert(data.message));
     });
 
     document.getElementById('runStrategyBtn').addEventListener('click', () => {
         document.getElementById('logContainer').textContent = 'Executing strategy...';
-        fetch('/api/run_strategy', { method: 'POST' })
+        fetch(URLS.runStrategy, { method: 'POST' })
         .then(res => res.json())
         .then(data => {
             document.getElementById('logContainer').textContent = data.log.join('\n');
@@ -423,7 +427,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     document.getElementById('resetBtn').addEventListener('click', () => {
         if (confirm('Are you sure you want to reset your portfolio?')) {
-            fetch('/api/reset', { method: 'POST' })
+            fetch(URLS.resetPortfolio, { method: 'POST' })
             .then(res => res.json())
             .then(data => {
                 alert(data.status);
@@ -432,21 +436,19 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // --- Data Fetching ---
     function initialLoad() {
-        fetch('/api/status').then(res => res.json()).then(data => {
+        fetch(URLS.getStatus).then(res => res.json()).then(data => {
             updateDashboardUI(data);
             updateSettingsUI(data.settings);
         });
     }
 
     function fetchDynamicData() {
-        fetch('/api/dynamic_data').then(res => res.json()).then(data => {
+        fetch(URLS.getDynamicData).then(res => res.json()).then(data => {
             updateDashboardUI(data);
         });
     }
 
-    // Initial Load and set interval for dynamic data
     initialLoad();
     setInterval(fetchDynamicData, 10000);
 });

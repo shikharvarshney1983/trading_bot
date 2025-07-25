@@ -24,6 +24,7 @@ import threading
 import database
 from trading_bot import TradingBot
 import stock_screener # Import the new screener script
+from backtester import Backtester # Import the new backtester class
 
 # --- Load Environment Variables ---
 load_dotenv()
@@ -262,6 +263,58 @@ def delete_user():
 @login_required
 def dashboard():
     return render_template('dashboard.html')
+
+
+# --- Backtester Routes ---
+# --- Backtester Routes ---
+@app.route('/backtest')
+@login_required
+def backtest_page():
+    db = database.get_db()
+    user_settings = db.execute('SELECT * FROM users WHERE id = ?', (current_user.id,)).fetchone()
+    db.close()
+    return render_template('backtest.html', user_settings=user_settings)
+
+@app.route('/api/run_backtest', methods=['POST'])
+@login_required
+def run_backtest():
+    params = request.json
+    try:
+        start_date = datetime.strptime(params['start_date'], '%Y-%m-%d')
+        end_date = datetime.strptime(params['end_date'], '%Y-%m-%d')
+        
+        backtester = Backtester(
+            stock_tickers=params['stock_list'],
+            start_date=start_date,
+            end_date=end_date,
+            interval=params['interval'],
+            initial_capital=params['initial_capital'],
+            tranche_sizes_pct=json.loads(params['tranche_sizes']),
+            brokerage=params['brokerage'],
+            max_positions=params['max_positions']
+        )
+        results = backtester.run()
+
+        db = database.get_db()
+        db.execute(
+            'INSERT INTO backtest_results (user_id, params_json, results_json) VALUES (?, ?, ?)',
+            (current_user.id, json.dumps(params), json.dumps(results))
+        )
+        db.commit()
+        db.close()
+
+        return jsonify({'status': 'success', 'results': results})
+    except Exception as e:
+        app.logger.error(f"Backtest error: {e}")
+        return jsonify({'status': 'error', 'message': str(e), 'log': backtester.log if 'backtester' in locals() else []}), 500
+
+@app.route('/api/backtest_results')
+@login_required
+def get_backtest_results():
+    db = database.get_db()
+    results = db.execute('SELECT * FROM backtest_results WHERE user_id = ? ORDER BY run_date DESC', (current_user.id,)).fetchall()
+    db.close()
+    return jsonify([dict(row) for row in results])
 
 def get_dashboard_data(user_id):
     """Helper function to compute and return all dynamic dashboard data."""

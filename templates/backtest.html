@@ -1,0 +1,294 @@
+{% extends "_base.html" %}
+{% block title %}Backtester{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h2 mb-3">Strategy Backtester</h1>
+
+    <div class="row">
+        <!-- Settings Column -->
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header fw-bold">Backtest Parameters</div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Start Date</label>
+                            <input type="date" id="startDate" class="form-control">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">End Date</label>
+                            <input type="date" id="endDate" class="form-control">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Interval</label>
+                            <select id="interval" class="form-select">
+                                <option value="1d">Daily</option>
+                                <option value="1wk">Weekly</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Initial Capital</label>
+                            <input type="number" id="initialCapital" class="form-control" value="{{ user_settings.base_capital }}">
+                        </div>
+                    </div>
+                     <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Max Open Positions</label>
+                            <input type="number" id="maxPositions" class="form-control" value="{{ user_settings.max_open_positions }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Brokerage per Trade</label>
+                            <input type="number" id="brokerage" class="form-control" value="{{ user_settings.brokerage_per_trade }}">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Tranche Sizes (JSON)</label>
+                        <textarea id="tranches" class="form-control" rows="3">{{ user_settings.tranche_sizes }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Stock List (comma-separated)</label>
+                        <textarea id="stockList" class="form-control" rows="4">{{ user_settings.stock_list }}</textarea>
+                    </div>
+                    <button id="runBacktestBtn" class="btn btn-primary w-100">Run Backtest</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header fw-bold">Backtest History</div>
+                <div class="card-body" style="max-height: 300px; overflow-y: auto;">
+                    <ul class="list-group" id="backtestHistory">
+                        <!-- History items will be loaded here -->
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Column -->
+        <div class="col-lg-8">
+            <div id="resultsContainer" style="display: none;">
+                <div class="card mb-4">
+                    <div class="card-header fw-bold">Summary</div>
+                    <div class="card-body">
+                        <div class="row" id="summaryStats"></div>
+                    </div>
+                </div>
+                <div class="card mb-4">
+                    <div class="card-header fw-bold">Portfolio Value Over Time</div>
+                    <div class="card-body">
+                        <canvas id="pnlChart"></canvas>
+                    </div>
+                </div>
+                 <div class="card mb-4">
+                    <div class="card-header fw-bold">Final Portfolio Holdings</div>
+                    <div class="card-body">
+                        <div class="table-responsive" style="max-height: 300px;">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr><th>Ticker</th><th>Qty</th><th>Avg. Price</th><th>Last Price</th><th>P&L</th></tr>
+                                </thead>
+                                <tbody id="finalPortfolioBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-header fw-bold">Transactions</div>
+                    <div class="card-body">
+                        <div class="table-responsive" style="max-height: 400px;">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr><th>Date</th><th>Ticker</th><th>Action</th><th>Qty</th><th>Price</th><th>Value</th></tr>
+                                </thead>
+                                <tbody id="transactionsBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="loadingIndicator" class="text-center" style="display: none;">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Running backtest, this may take a few minutes...</p>
+                <pre id="logContainer" class="bg-dark text-white p-2" style="height: 200px; overflow-y: auto; text-align: left;"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const runBtn = document.getElementById('runBacktestBtn');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+    const logContainer = document.getElementById('logContainer');
+    let pnlChart;
+
+    function formatCurrency(val) {
+        return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(val);
+    }
+    const pnlColor = (val) => val >= 0 ? 'text-success' : 'text-danger';
+
+
+    function displayResults(data) {
+        const summary = data.summary;
+        const summaryEl = document.getElementById('summaryStats');
+        summaryEl.innerHTML = `
+            <div class="col-md-4 mb-2"><strong>Final Value:</strong> ${formatCurrency(summary.final_portfolio_value)}</div>
+            <div class="col-md-4 mb-2"><strong>Total Return:</strong> <span class="${pnlColor(summary.total_return_pct)}">${summary.total_return_pct.toFixed(2)}%</span></div>
+            <div class="col-md-4 mb-2"><strong>CAGR:</strong> <span class="${pnlColor(summary.cagr_pct)}">${summary.cagr_pct.toFixed(2)}%</span></div>
+            <div class="col-md-4 mb-2"><strong>Realized P&L:</strong> <span class="${pnlColor(summary.realized_pnl)}">${formatCurrency(summary.realized_pnl)}</span></div>
+            <div class="col-md-4 mb-2"><strong>Unrealized P&L:</strong> <span class="${pnlColor(summary.unrealized_pnl)}">${formatCurrency(summary.unrealized_pnl)}</span></div>
+            <div class="col-md-4 mb-2"><strong>Max Drawdown:</strong> <span class="text-danger">${summary.max_drawdown_pct.toFixed(2)}%</span></div>
+            <div class="col-md-4 mb-2"><strong>Total Trades:</strong> ${summary.total_trades}</div>
+            <div class="col-md-4 mb-2"><strong>Win Ratio:</strong> ${summary.win_ratio_pct.toFixed(2)}%</div>
+            <div class="col-md-4 mb-2"><strong>Avg. Win:</strong> <span class="text-success">${formatCurrency(summary.avg_win)}</span></div>
+            <div class="col-md-4 mb-2"><strong>Avg. Loss:</strong> <span class="text-danger">${formatCurrency(summary.avg_loss)}</span></div>
+        `;
+
+        const transactionsBody = document.getElementById('transactionsBody');
+        transactionsBody.innerHTML = '';
+        data.transactions.forEach(tx => {
+            const actionClass = tx.action === 'BUY' ? 'text-success' : 'text-danger';
+            transactionsBody.innerHTML += `
+                <tr>
+                    <td>${tx.date}</td>
+                    <td>${tx.ticker}</td>
+                    <td class="${actionClass}">${tx.action}</td>
+                    <td>${tx.quantity}</td>
+                    <td>${formatCurrency(tx.price)}</td>
+                    <td>${formatCurrency(tx.value)}</td>
+                </tr>`;
+        });
+        
+        const finalPortfolioBody = document.getElementById('finalPortfolioBody');
+        finalPortfolioBody.innerHTML = '';
+        if (data.final_portfolio.length === 0) {
+            finalPortfolioBody.innerHTML = '<tr><td colspan="5" class="text-center">No open positions at end of period.</td></tr>';
+        } else {
+            data.final_portfolio.forEach(pos => {
+                finalPortfolioBody.innerHTML += `
+                    <tr>
+                        <td>${pos.ticker}</td>
+                        <td>${pos.quantity}</td>
+                        <td>${formatCurrency(pos.avg_price)}</td>
+                        <td>${formatCurrency(pos.last_price)}</td>
+                        <td class="${pnlColor(pos.pnl)}">${formatCurrency(pos.pnl)}</td>
+                    </tr>`;
+            });
+        }
+
+
+        const ctx = document.getElementById('pnlChart').getContext('2d');
+        if (pnlChart) pnlChart.destroy();
+        pnlChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: data.pnl_history.map(d => d.date),
+                datasets: [{
+                    label: 'Portfolio Value',
+                    data: data.pnl_history.map(d => d.value),
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1,
+                    pointRadius: 0
+                }]
+            },
+            options: { scales: { x: { title: { display: true, text: 'Date' } }, y: { title: { display: true, text: 'Portfolio Value (INR)' } } } }
+        });
+    }
+
+    runBtn.addEventListener('click', () => {
+        const payload = {
+            start_date: document.getElementById('startDate').value,
+            end_date: document.getElementById('endDate').value,
+            interval: document.getElementById('interval').value,
+            initial_capital: parseFloat(document.getElementById('initialCapital').value),
+            max_positions: parseInt(document.getElementById('maxPositions').value),
+            brokerage: parseFloat(document.getElementById('brokerage').value),
+            tranche_sizes: document.getElementById('tranches').value,
+            stock_list: document.getElementById('stockList').value.split(',').map(s => s.trim().toUpperCase())
+        };
+
+        if (!payload.start_date || !payload.end_date || !payload.stock_list.length) {
+            alert('Please fill in Start Date, End Date, and Stock List.');
+            return;
+        }
+
+        resultsContainer.style.display = 'none';
+        loadingIndicator.style.display = 'block';
+        runBtn.disabled = true;
+        logContainer.textContent = '';
+
+        fetch("{{ url_for('run_backtest') }}", {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'error') {
+                alert('Error: ' + data.message);
+                logContainer.textContent = data.log.join('\n');
+            } else {
+                displayResults(data.results);
+                resultsContainer.style.display = 'block';
+                loadBacktestHistory();
+            }
+        })
+        .catch(err => {
+            alert('An unexpected error occurred.');
+            console.error(err);
+        })
+        .finally(() => {
+            loadingIndicator.style.display = 'none';
+            runBtn.disabled = false;
+        });
+    });
+
+    function loadBacktestHistory() {
+        fetch("{{ url_for('get_backtest_results') }}")
+            .then(res => res.json())
+            .then(data => {
+                const historyEl = document.getElementById('backtestHistory');
+                historyEl.innerHTML = '';
+                if (data.length === 0) {
+                    historyEl.innerHTML = '<li class="list-group-item">No backtests run yet.</li>';
+                }
+                data.forEach(item => {
+                    const result = JSON.parse(item.results_json);
+                    const returnPct = result.summary.total_return_pct;
+                    const colorClass = returnPct >= 0 ? 'text-success' : 'text-danger';
+                    historyEl.innerHTML += `
+                        <a href="#" class="list-group-item list-group-item-action" data-result='${JSON.stringify(result)}'>
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">${new Date(item.run_date).toLocaleString()}</h6>
+                                <strong class="${colorClass}">${returnPct.toFixed(2)}%</strong>
+                            </div>
+                            <small>${JSON.stringify(JSON.parse(item.params_json))}</small>
+                        </a>
+                    `;
+                });
+            });
+    }
+    
+    document.getElementById('backtestHistory').addEventListener('click', function(e) {
+        e.preventDefault();
+        const link = e.target.closest('a');
+        if (link && link.dataset.result) {
+            const resultData = JSON.parse(link.dataset.result);
+            displayResults(resultData);
+            resultsContainer.style.display = 'block';
+            window.scrollTo(0, 0);
+        }
+    });
+
+    loadBacktestHistory();
+});
+</script>
+{% endblock %}
