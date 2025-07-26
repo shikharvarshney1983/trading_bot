@@ -21,7 +21,7 @@ def main():
         scheduler.add_job(scheduled_screener_job, 'cron', day_of_week='mon-fri', hour=16, minute=0, args=['daily'])
         
         # Weekly runs after market close on Friday
-        scheduler.add_job(scheduled_screener_job, 'cron', day_of_week='fri', hour=15, minute=0, args=['weekly'])
+        scheduler.add_job(scheduled_screener_job, 'cron', day_of_week='fri', hour=17, minute=0, args=['weekly'])
         
         # Monthly runs after market close on the last Friday of the month
         # CORRECTED: Use day='last fri' instead of day_of_week
