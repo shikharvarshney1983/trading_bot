@@ -155,7 +155,6 @@ def run_screener_process(frequency='weekly'):
             try:
                 data = yf.download(symbol, start=start_date, end=end_date_exclusive, interval=interval, progress=False)
                 
-                # FIX: Handle cases where yfinance returns a MultiIndex for a single ticker
                 if isinstance(data.columns, pd.MultiIndex):
                     data.columns = data.columns.droplevel(1)
 
@@ -164,7 +163,13 @@ def run_screener_process(frequency='weekly'):
                 data = calculate_indicators(data)
                 stock_ret = data['Close'].pct_change().rolling(rpi_period).sum()
                 nifty_ret_aligned = nifty_data['Close'].pct_change().rolling(rpi_period).sum()
-                data['RPI'] = stock_ret / nifty_ret_aligned
+                
+                # --- FIX: Robust RPI Calculation ---
+                # Calculate RPI using the robust ratio method to handle negative returns correctly
+                denominator = 1 + nifty_ret_aligned
+                # Use .replace(0, np.nan) to prevent division by zero errors
+                data['RPI'] = (1 + stock_ret) / denominator.replace(0, np.nan)
+
 
                 latest = data.iloc[-1]
                 previous = data.iloc[-2]
@@ -184,7 +189,6 @@ def run_screener_process(frequency='weekly'):
                     'fifty_two_week_high': data['High'].rolling(year_lookback).max().iloc[-1],
                 }
 
-                # --- NEW FILTER LOGIC ---
                 is_making_higher_close = latest['Close'] > previous['Close']
                 intraday_move_pct = ((latest['Close'] - latest['Open']) / latest['Open']) * 100
                 is_not_major_reversal = intraday_move_pct > -1.0
@@ -213,7 +217,6 @@ def run_screener_process(frequency='weekly'):
         filtered_df = df[df['is_filtered']].copy()
 
         if not filtered_df.empty:
-            # Ranking logic remains the same, but is now applied to the more accurately filtered list
             filtered_df['3m_change_pct'] = filtered_df.apply(lambda row: (row['current_price'] / data['Close'].iloc[-quarter_lookback] - 1) * 100 if len(data) > quarter_lookback else 0, axis=1)
             filtered_df['rs_rating'] = filtered_df['3m_change_pct'].rank(pct=True) * 100
             filtered_df['near_52w_high_score'] = filtered_df['current_price'] / filtered_df['fifty_two_week_high']

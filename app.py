@@ -257,6 +257,9 @@ def delete_user():
 def dashboard():
     return render_template('dashboard.html')
 
+@app.route('/tcpl')
+def tcpl():
+    return render_template('tcplanalysis.html')
 
 # --- Backtester Routes ---
 @app.route('/backtest')

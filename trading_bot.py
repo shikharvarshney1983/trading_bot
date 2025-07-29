@@ -5,6 +5,7 @@ import pandas as pd
 import pandas_ta as ta
 from datetime import datetime, timedelta
 import logging
+import numpy as np # Import numpy for the fix
 
 class TradingBot:
     def __init__(self, stock_tickers, benchmark_ticker, interval='1wk'):
@@ -31,7 +32,6 @@ class TradingBot:
 
         all_tickers = self.stock_tickers + [self.benchmark_ticker]
         
-        # Adjust data download period based on interval
         days_to_fetch = 730 if self.interval == '1wk' else 200
         start_date = (datetime.now() - timedelta(days=days_to_fetch)).strftime('%Y-%m-%d')
         end_date = datetime.now().strftime('%Y-%m-%d')
@@ -60,11 +60,15 @@ class TradingBot:
                 stock_data.ta.donchian(lower_length=20, upper_length=20, append=True)
                 stock_data['Volume_MA10'] = stock_data['Volume'].rolling(window=10).mean()
 
-                # Calculate Relative Strength
-                roll_period = 50 if self.interval == '1wk' else 10 # Shorter lookback for daily
+                # --- FIX: Robust RS Calculation ---
+                roll_period = 50 if self.interval == '1wk' else 10
                 stock_ret = stock_data['Close'].pct_change().rolling(roll_period).sum()
                 bench_ret = benchmark_data['Close'].pct_change().rolling(roll_period).sum()
-                stock_data['RS'] = stock_ret / bench_ret
+                
+                # Calculate RS (Relative Strength) using the robust ratio method
+                denominator = 1 + bench_ret
+                # Use .replace(0, np.nan) to prevent division by zero errors
+                stock_data['RS'] = (1 + stock_ret) / denominator.replace(0, np.nan)
 
                 self.all_data[ticker] = stock_data.dropna()
             except Exception as e:
