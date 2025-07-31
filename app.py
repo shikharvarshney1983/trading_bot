@@ -481,16 +481,9 @@ def save_buy_list():
 # --- REFACTORED STRATEGY EXECUTION LOGIC ---
 
 def get_live_price(ticker):
-    try:
-        price_data = yf.download(ticker, period='1d', progress=False)
-        if not price_data.empty:
-            last_close = price_data['Close'].iloc[-1]
-            live_price = float(last_close.item() if isinstance(last_close, (pd.Series, pd.DataFrame)) else last_close)
-            if pd.notna(live_price):
-                return live_price
-    except Exception as e:
-        logging.error(f"Could not fetch live price for {ticker}: {e}")
-    return None
+    """Wrapper for single price fetching, used by trading logic."""
+    prices = get_live_prices_bulk([ticker])
+    return prices.get(ticker)
 
 def execute_sell_and_add_trades(user_id):
     db = database.get_db()
