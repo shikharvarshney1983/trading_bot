@@ -2,7 +2,7 @@
 
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import pandas as pd
 import yfinance as yf
 import pytz
@@ -52,6 +52,8 @@ TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 
 # --- Global Cache for Live Prices ---
 live_prices_cache = {}
+cache_expiry = timedelta(minutes=1)
+last_cache_update = datetime.min
 
 # --- Default Constants for New Users ---
 NEW_USER_BASE_CAPITAL = 1000000.0 # Default base capital for new users
@@ -319,6 +321,33 @@ def get_backtest_results():
     db.close()
     return jsonify([dict(row) for row in results])
 
+def get_live_prices_bulk(tickers: list):
+    global live_prices_cache, last_cache_update
+    now = datetime.now()
+    if now - last_cache_update < cache_expiry:
+        tickers_to_fetch = [t for t in tickers if t not in live_prices_cache]
+    else:
+        tickers_to_fetch = tickers
+        live_prices_cache.clear()
+    if not tickers_to_fetch:
+        return {t: live_prices_cache[t] for t in tickers if t in live_prices_cache}
+    logging.info(f"Fetching live prices for: {tickers_to_fetch}")
+    try:
+        data = yf.download(tickers=tickers_to_fetch, period='1d', progress=False)
+        if data.empty:
+            logging.error("yf.download returned empty dataframe for live prices.")
+            return {}
+        last_prices = data['Close'].iloc[-1]
+        for ticker, price in last_prices.items():
+            if pd.notna(price):
+                live_prices_cache[ticker] = price
+        last_cache_update = now
+    except Exception as e:
+        logging.error(f"Error in get_live_prices_bulk: {e}", exc_info=True)
+        if now - last_cache_update > cache_expiry:
+            live_prices_cache.clear()
+    return {t: live_prices_cache[t] for t in tickers if t in live_prices_cache}
+
 def get_dashboard_data(user_id):
     """Helper function to compute and return all dynamic dashboard data."""
     db = database.get_db()
@@ -332,29 +361,16 @@ def get_dashboard_data(user_id):
     # Convert to list of dicts for easier handling
     transactions = [dict(row) for row in transaction_rows]
     
-    tickers_to_fetch_now = [ticker for ticker in portfolio.keys() if ticker not in live_prices_cache]
-    if tickers_to_fetch_now:
-        logging.info(f"get_dashboard_data: Fetching live prices for {tickers_to_fetch_now}")
-        try:
-            live_data = yf.download(tickers_to_fetch_now, period='1d', progress=False)
-            if not live_data.empty:
-                if len(tickers_to_fetch_now) == 1:
-                    last_prices = {tickers_to_fetch_now[0]: live_data['Close'].iloc[-1]}
-                else:
-                    last_prices = live_data['Close'].iloc[-1].to_dict()
-                
-                logging.info(f"get_dashboard_data: Fetched prices: {last_prices}")
-                
-                for ticker, price in last_prices.items():
-                    if pd.notna(price):
-                        live_prices_cache[ticker] = price
-        except Exception as e:
-            logging.error(f"get_dashboard_data: Error fetching prices on-demand: {e}")
+    # Efficiently fetch live prices for the entire portfolio
+    portfolio_tickers = list(portfolio.keys())
+    live_prices = {}
+    if portfolio_tickers:
+        live_prices = get_live_prices_bulk(portfolio_tickers)
 
     unrealized_pnl = 0
     holdings_value = 0
     for ticker, pos in portfolio.items():
-        last_price = live_prices_cache.get(ticker)
+        last_price = live_prices.get(ticker, pos['avg_price'])
         if last_price:
             pos['current_price'] = last_price
             pos['market_value'] = pos['quantity'] * last_price
@@ -463,18 +479,6 @@ def save_buy_list():
     return jsonify({'status': 'success', 'message': 'Buy list saved.'})
 
 # --- REFACTORED STRATEGY EXECUTION LOGIC ---
-
-def get_live_price(ticker):
-    try:
-        price_data = yf.download(ticker, period='1d', progress=False)
-        if not price_data.empty:
-            last_close = price_data['Close'].iloc[-1]
-            live_price = float(last_close.item() if isinstance(last_close, (pd.Series, pd.DataFrame)) else last_close)
-            if pd.notna(live_price):
-                return live_price
-    except Exception as e:
-        logging.error(f"Could not fetch live price for {ticker}: {e}")
-    return None
 
 def get_live_price(ticker):
     try:
