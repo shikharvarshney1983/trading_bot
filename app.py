@@ -522,6 +522,10 @@ def execute_sell_and_add_trades(user_id):
             db.execute('INSERT INTO transactions (user_id, date, ticker, action, quantity, price, value) VALUES (?, ?, ?, ?, ?, ?, ?)',
                        (user_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ticker, 'SELL', position['quantity'], sell_price, sell_value))
             logging.info(f"SELL: {user['username']} - {ticker} @ {sell_price}")
+            # FIX: Add Telegram alert for SELL
+            if user['telegram_chat_id']:
+                message = f"🔴 SELL Order Executed\n\n*Ticker:* {ticker}\n*Quantity:* {position['quantity']}\n*Price:* ₹{sell_price:.2f}\n*Reason:* {signal['reason']}"
+                send_telegram_message(user['telegram_chat_id'], message)
 
         # Add-On Logic
         add_on_signals = strategy.get_add_on_signals(portfolio, all_data)
@@ -544,6 +548,10 @@ def execute_sell_and_add_trades(user_id):
                 db.execute('INSERT INTO transactions (user_id, date, ticker, action, quantity, price, value) VALUES (?, ?, ?, ?, ?, ?, ?)',
                            (user_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ticker, 'ADD', add_quantity, add_price, add_quantity * add_price))
                 logging.info(f"ADD: {user['username']} - {ticker} @ {add_price}")
+                # FIX: Add Telegram alert for ADD
+                if user['telegram_chat_id']:
+                    message = f"🔵 ADD Order Executed\n\n*Ticker:* {ticker}\n*Quantity:* {add_quantity}\n*Price:* ₹{add_price:.2f}"
+                    send_telegram_message(user['telegram_chat_id'], message)
 
         db.execute('UPDATE users SET cash_balance = ? WHERE id = ?', (cash_balance, user_id))
         db.commit()
@@ -596,7 +604,7 @@ def execute_buy_trades(user_id, manual_buy_list=None):
 
         buy_list = []
         if manual_buy_list is not None:
-            buy_list = manual_buy_list # Use the list passed for manual runs
+            buy_list = manual_buy_list
         elif user['next_day_buy_list']:
             buy_list = [s.strip() for s in user['next_day_buy_list'].split(',') if s.strip()]
 
@@ -622,6 +630,10 @@ def execute_buy_trades(user_id, manual_buy_list=None):
                 db.execute('INSERT INTO transactions (user_id, date, ticker, action, quantity, price, value) VALUES (?, ?, ?, ?, ?, ?, ?)',
                            (user_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ticker, 'BUY', quantity, buy_price, quantity * buy_price))
                 logging.info(f"BUY: {user['username']} - {ticker} Qty: {quantity} @ {buy_price}")
+                # FIX: Add Telegram alert for BUY
+                if user['telegram_chat_id']:
+                    message = f"✅ BUY Order Executed\n\n*Ticker:* {ticker}\n*Quantity:* {quantity}\n*Price:* ₹{buy_price:.2f}"
+                    send_telegram_message(user['telegram_chat_id'], message)
         
         db.execute('UPDATE users SET cash_balance = ? WHERE id = ?', (cash_balance, user_id))
         db.commit()
