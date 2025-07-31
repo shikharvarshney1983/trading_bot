@@ -443,6 +443,255 @@ def get_dynamic_data():
     dashboard_data = get_dashboard_data(user_id)
     return jsonify(dashboard_data)
 
+@app.route('/api/save_buy_list', methods=['POST'])
+@login_required
+def save_buy_list():
+    data = request.json
+    buy_list_str = data.get('buy_list', '')
+    buy_list = [ticker.strip().upper() for ticker in buy_list_str.split(',') if ticker.strip()]
+    
+    db = database.get_db()
+    try:
+        db.execute('UPDATE users SET next_day_buy_list = ? WHERE id = ?', (','.join(buy_list), current_user.id))
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        return jsonify({'status': 'error', 'message': f'Database error: {e}'}), 500
+    finally:
+        db.close()
+    
+    return jsonify({'status': 'success', 'message': 'Buy list saved.'})
+
+# --- REFACTORED STRATEGY EXECUTION LOGIC ---
+
+def get_live_price(ticker):
+    try:
+        price_data = yf.download(ticker, period='1d', progress=False)
+        if not price_data.empty:
+            last_close = price_data['Close'].iloc[-1]
+            live_price = float(last_close.item() if isinstance(last_close, (pd.Series, pd.DataFrame)) else last_close)
+            if pd.notna(live_price):
+                return live_price
+    except Exception as e:
+        logging.error(f"Could not fetch live price for {ticker}: {e}")
+    return None
+
+def execute_sell_and_add_trades(user_id):
+    """Scheduled for 3:00 PM. Handles only sells and add-ons."""
+    db = database.get_db()
+    try:
+        user = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+        if not user: return
+        
+        logging.info(f"--- 3:00 PM: EXECUTING SELL/ADD for {user['username']} ---")
+        portfolio_rows = db.execute('SELECT * FROM portfolios WHERE user_id = ?', (user_id,)).fetchall()
+        portfolio = {row['ticker']: dict(row) for row in portfolio_rows}
+        if not portfolio:
+            logging.info(f"No open positions for {user['username']}. Skipping.")
+            db.close()
+            return
+
+        stock_list = list(portfolio.keys())
+        bot = TradingBot(stock_tickers=stock_list, benchmark_ticker='^NSEI', interval=user['execution_interval'])
+        all_data, _ = bot.get_analysis()
+        if all_data is None: raise Exception("Failed to fetch market data for sell/add.")
+
+        strategy = MomentumStrategy()
+        cash_balance = user['cash_balance']
+        brokerage = user['brokerage_per_trade']
+        base_capital = user['base_capital']
+        tranches = json.loads(user['tranche_sizes'])
+
+        # Execute SELL signals
+        sell_signals = strategy.get_sell_signals(portfolio, all_data)
+        for signal in sell_signals:
+            ticker = signal['ticker']
+            position = portfolio[ticker]
+            sell_price = get_live_price(ticker)
+            if sell_price is None: continue
+
+            sell_value = position['quantity'] * sell_price
+            cash_balance += sell_value - brokerage
+            
+            db.execute('DELETE FROM portfolios WHERE user_id = ? AND ticker = ?', (user_id, ticker))
+            db.execute('INSERT INTO transactions (user_id, date, ticker, action, quantity, price, value) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                       (user_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ticker, 'SELL', position['quantity'], sell_price, sell_value))
+            logging.info(f"SELL: {user['username']} - {ticker} Qty: {position['quantity']} @ {sell_price}")
+
+        # Execute ADD-ON signals
+        add_on_signals = strategy.get_add_on_signals(portfolio, all_data)
+        for signal in add_on_signals:
+            ticker = signal['ticker']
+            position = portfolio[ticker]
+            next_tranche_level = position['tranche_level'] + 1
+            if str(next_tranche_level) not in tranches: continue
+            
+            add_price = get_live_price(ticker)
+            if add_price is None: continue
+
+            target_investment = base_capital * tranches[str(next_tranche_level)]
+            add_quantity = round(target_investment / add_price) if add_price > 0 else 0
+            trade_cost = (add_quantity * add_price) + brokerage
+
+            if add_quantity > 0 and cash_balance >= trade_cost:
+                cash_balance -= trade_cost
+                new_total_investment = position['total_investment'] + (add_quantity * add_price)
+                new_quantity = position['quantity'] + add_quantity
+                new_avg_price = new_total_investment / new_quantity
+                
+                db.execute('UPDATE portfolios SET quantity=?, avg_price=?, total_investment=?, tranche_level=? WHERE id=?',
+                           (new_quantity, new_avg_price, new_total_investment, next_tranche_level, position['id']))
+                db.execute('INSERT INTO transactions (user_id, date, ticker, action, quantity, price, value) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                           (user_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ticker, 'ADD', add_quantity, add_price, add_quantity * add_price))
+                logging.info(f"ADD: {user['username']} - {ticker} Qty: {add_quantity} @ {add_price}")
+
+        db.execute('UPDATE users SET cash_balance = ? WHERE id = ?', (cash_balance, user_id))
+        db.commit()
+
+    except Exception as e:
+        logging.error(f"CRITICAL ERROR during SELL/ADD for {user['username']}: {e}", exc_info=True)
+        db.rollback()
+    finally:
+        if db: db.close()
+
+def generate_daily_watchlist(user_id):
+    """Scheduled for 4:00 PM. Generates buy watchlist."""
+    db = database.get_db()
+    try:
+        user = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+        if not user: return
+
+        logging.info(f"--- 4:00 PM: GENERATING WATCHLIST for {user['username']} ---")
+        
+        db.execute('UPDATE users SET next_day_buy_list = NULL, daily_watchlist = NULL WHERE id = ?', (user_id,))
+        db.commit()
+
+        stock_list = [s.strip() for s in (user['stock_list'] or '').split(',') if s.strip()]
+        if not stock_list: return
+
+        portfolio_rows = db.execute('SELECT ticker FROM portfolios WHERE user_id = ?', (user_id,)).fetchall()
+        portfolio = {row['ticker']: {} for row in portfolio_rows}
+
+        bot = TradingBot(stock_tickers=stock_list, benchmark_ticker='^NSEI', interval=user['execution_interval'])
+        all_data, _ = bot.get_analysis()
+        if all_data is None: raise Exception("Failed to fetch data for watchlist generation.")
+
+        strategy = MomentumStrategy()
+        buy_signals = strategy.get_buy_signals(stock_list, portfolio, all_data, user['max_open_positions'])
+        
+        watchlist_tickers = [signal['ticker'] for signal in buy_signals]
+        watchlist_str = ",".join(watchlist_tickers)
+        
+        db.execute('UPDATE users SET daily_watchlist = ? WHERE id = ?', (watchlist_str, user_id))
+        db.commit()
+
+        if user['telegram_chat_id'] and watchlist_tickers:
+            available_slots = max(0, user['max_open_positions'] - len(portfolio))
+            tradingview_list = watchlist_str.replace('.NS', '')
+            message = (
+                f"📈 *Watchlist for Next Trading Day*\n\n"
+                f"You have *{available_slots}* position(s) available to open.\n\n"
+                f"Potential Buys:\n`{tradingview_list}`\n\n"
+                f"Please log in to the dashboard to finalize your buy list for tomorrow."
+            )
+            send_telegram_message(user['telegram_chat_id'], message)
+
+    except Exception as e:
+        logging.error(f"CRITICAL ERROR during WATCHLIST generation for {user['username']}: {e}", exc_info=True)
+        db.rollback()
+    finally:
+        if db: db.close()
+
+def execute_buy_trades(user_id):
+    """Scheduled for 9:15 AM. Executes buys from user's list."""
+    db = database.get_db()
+    try:
+        user = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
+        if not user or not user['next_day_buy_list']: return
+
+        logging.info(f"--- 9:15 AM: EXECUTING BUYS for {user['username']} ---")
+        buy_list = [s.strip() for s in user['next_day_buy_list'].split(',') if s.strip()]
+        if not buy_list: return
+
+        cash_balance = user['cash_balance']
+        tranches = json.loads(user['tranche_sizes'])
+        base_capital = user['base_capital']
+        brokerage = user['brokerage_per_trade']
+        
+        for ticker in buy_list:
+            buy_price = get_live_price(ticker)
+            if buy_price is None:
+                logging.warning(f"Could not get opening price for BUY on {ticker}. Skipping.")
+                continue
+            
+            target_investment = base_capital * tranches["1"]
+            quantity = round(target_investment / buy_price) if buy_price > 0 else 0
+            trade_cost = (quantity * buy_price) + brokerage
+
+            if quantity > 0 and cash_balance >= trade_cost:
+                cash_balance -= trade_cost
+                db.execute('INSERT INTO portfolios (user_id, ticker, quantity, avg_price, total_investment, tranche_level, entry_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                           (user_id, ticker, quantity, buy_price, quantity * buy_price, 1, datetime.now().strftime('%Y-%m-%d')))
+                db.execute('INSERT INTO transactions (user_id, date, ticker, action, quantity, price, value) VALUES (?, ?, ?, ?, ?, ?, ?)',
+                           (user_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ticker, 'BUY', quantity, buy_price, quantity * buy_price))
+                logging.info(f"BUY: {user['username']} - {ticker} Qty: {quantity} @ {buy_price}")
+        
+        db.execute('UPDATE users SET cash_balance = ? WHERE id = ?', (cash_balance, user_id))
+        db.commit()
+
+    except Exception as e:
+        logging.error(f"CRITICAL ERROR during BUY execution for {user['username']}: {e}", exc_info=True)
+        db.rollback()
+    finally:
+        if db: db.close()
+
+# --- BACKGROUND SCHEDULER MASTER FUNCTIONS ---
+def master_scheduler_sell_add():
+    """3:00 PM Job: Checks and runs sell/add logic for eligible users."""
+    with app.app_context():
+        db = database.get_db()
+        users = db.execute('SELECT id, username, execution_interval FROM users WHERE auto_run_enabled = 1').fetchall()
+        db.close()
+        
+        today_weekday = datetime.now(pytz.timezone('Asia/Kolkata')).weekday() # Monday=0, Friday=4
+
+        for user in users:
+            # Run for daily users every weekday. Run for weekly users only on Friday (4).
+            if user['execution_interval'] == '1d' or (user['execution_interval'] == '1wk' and today_weekday == 4):
+                execute_sell_and_add_trades(user['id'])
+            else:
+                logging.info(f"Skipping 3:00 PM job for weekly user {user['username']} on a non-Friday.")
+
+def master_scheduler_watchlist():
+    """4:00 PM Job: Checks and generates watchlists for eligible users."""
+    with app.app_context():
+        db = database.get_db()
+        users = db.execute('SELECT id, username, execution_interval FROM users WHERE auto_run_enabled = 1').fetchall()
+        db.close()
+
+        today_weekday = datetime.now(pytz.timezone('Asia/Kolkata')).weekday()
+
+        for user in users:
+            if user['execution_interval'] == '1d' or (user['execution_interval'] == '1wk' and today_weekday == 4):
+                generate_daily_watchlist(user['id'])
+            else:
+                logging.info(f"Skipping 4:00 PM job for weekly user {user['username']} on a non-Friday.")
+
+def master_scheduler_buy():
+    """9:15 AM Job: Checks and runs buy logic for eligible users."""
+    with app.app_context():
+        db = database.get_db()
+        users = db.execute('SELECT id, username, execution_interval FROM users WHERE auto_run_enabled = 1').fetchall()
+        db.close()
+        
+        today_weekday = datetime.now(pytz.timezone('Asia/Kolkata')).weekday()
+
+        for user in users:
+            # Buys happen on the next day, so for weekly users, this runs on Monday (0).
+            if user['execution_interval'] == '1d' or (user['execution_interval'] == '1wk' and today_weekday == 0):
+                 execute_buy_trades(user['id'])
+            else:
+                logging.info(f"Skipping 9:15 AM buy job for weekly user {user['username']} on a non-Monday.")
 
 @app.route('/api/save_settings', methods=['POST'])
 @login_required
@@ -879,163 +1128,6 @@ def download_screener_results():
         download_name=f'stock_screener_results_{frequency}.xlsx'
     )
 
-def execute_strategy_for_user(user_id):
-    """A dedicated function to run the trading strategy for a single user."""
-    log = []
-    db = database.get_db()
-
-    try:
-        user = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
-        if not user:
-            return ["User not found."], "Error"
-
-        logging.info(f"--- EXECUTING LIVE STRATEGY for {user['username']} ---")
-        
-        portfolio_rows = db.execute('SELECT * FROM portfolios WHERE user_id = ?', (user_id,)).fetchall()
-        
-        stock_list = [s.strip() for s in (user['stock_list'] or '').split(',') if s.strip()]
-        if not stock_list:
-            logging.info(f"User '{user['username']}' has no stocks in their list. Skipping live strategy run.")
-            return log, "No stocks in list"
-
-        # Load user-specific parameters
-        max_open_positions = user['max_open_positions']
-        brokerage = user['brokerage_per_trade']
-        base_capital = user['base_capital']
-        tranches = json.loads(user['tranche_sizes'])
-        cash_balance = user['cash_balance']
-        initial_cash_balance_for_log = cash_balance # For logging
-        
-        portfolio = {row['ticker']: dict(row) for row in portfolio_rows}
-        # print(f"User '{user['username']}' portfolio loaded with {len(portfolio)} positions.")
-
-        # Step 1: Get data with indicators
-        bot = TradingBot(stock_tickers=stock_list, benchmark_ticker='^NSEI', interval=user['execution_interval'])
-        all_data, fetch_log = bot.get_analysis()
-        log.extend(fetch_log)
-
-        if all_data is None:
-            raise Exception("Failed to fetch market data.")
-
-        # Step 2: Initialize the strategy
-        strategy = MomentumStrategy()
-        total_brokerage_session = 0
-
-        # Step 3: Check for SELL signals
-        logging.info(f"\n--- Checking Sell Conditions for {user['username']} ---")
-        sell_signals = strategy.get_sell_signals(portfolio, all_data)
-        for signal in sell_signals:
-            ticker = signal['ticker']
-            reason = signal['reason']
-            position = portfolio[ticker]
-            sell_price = all_data[ticker].iloc[-1]['Close']
-            sell_value = position['quantity'] * sell_price
-            
-            cash_balance += sell_value - brokerage
-            # print(f"User '{user['username']}' selling {ticker} for ₹{sell_value:.2f} (Brokerage: ₹{brokerage:.2f}) and cash balance now ₹{cash_balance:.2f}")
-            total_brokerage_session += brokerage
-            
-            logging.info(f"SELL for {user['username']}: {ticker} Qty: {position['quantity']} @ ₹{sell_price:.2f}. Reason: {reason}")
-            db.execute('DELETE FROM portfolios WHERE user_id = ? AND ticker = ?', (user_id, ticker))
-            db.execute('INSERT INTO transactions (user_id, date, ticker, action, quantity, price, value) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                       (user_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ticker, 'SELL', position['quantity'], sell_price, sell_value))
-            
-            if user['telegram_chat_id']:
-                message = f"🔴 SELL Order Executed\n\n*Ticker:* {ticker}\n*Quantity:* {position['quantity']}\n*Price:* ₹{sell_price:.2f}\n*Reason:* {reason}"
-                send_telegram_message(user['telegram_chat_id'], message)
-
-            del portfolio[ticker] # Update local portfolio state
-
-        # Step 4: Check for ADD-ON signals
-        logging.info(f"\n--- Checking Add-on Conditions for {user['username']} ---")
-        add_on_signals = strategy.get_add_on_signals(portfolio, all_data)
-        for signal in add_on_signals:
-            ticker = signal['ticker']
-            position = portfolio[ticker]
-            next_tranche_level = position['tranche_level'] + 1
-            
-            # Ensure the next tranche is defined in user settings
-            if str(next_tranche_level) not in tranches:
-                continue
-
-            target_investment = base_capital * tranches[str(next_tranche_level)]
-            add_price = signal['price']
-            add_quantity = round(target_investment / add_price) if add_price > 0 else 0
-            trade_cost = (add_quantity * add_price) + brokerage
-
-            if add_quantity > 0 and cash_balance >= trade_cost:
-                cash_balance -= trade_cost
-                # print(f"User '{user['username']}' adding {add_quantity} shares of {ticker} at ₹{add_price:.2f} (Total Cost: ₹{trade_cost:.2f}) and cash balance now ₹{cash_balance:.2f}")
-                total_brokerage_session += brokerage
-                logging.info(f"ADD for {user['username']}: {ticker} Qty: {add_quantity} @ ₹{add_price:.2f}")
-                
-                new_total_investment = position['total_investment'] + (add_quantity * add_price)
-                new_quantity = position['quantity'] + add_quantity
-                new_avg_price = new_total_investment / new_quantity
-                
-                db.execute('UPDATE portfolios SET quantity=?, avg_price=?, total_investment=?, tranche_level=? WHERE id=?',
-                           (new_quantity, new_avg_price, new_total_investment, next_tranche_level, position['id']))
-                db.execute('INSERT INTO transactions (user_id, date, ticker, action, quantity, price, value) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                           (user_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ticker, 'ADD', add_quantity, add_price, add_quantity * add_price))
-                
-                if user['telegram_chat_id']:
-                    message = f"🔵 ADD Order Executed\n\n*Ticker:* {ticker}\n*Quantity:* {add_quantity}\n*Price:* ₹{add_price:.2f}"
-                    send_telegram_message(user['telegram_chat_id'], message)
-
-                # Update local portfolio state
-                portfolio[ticker]['quantity'] = new_quantity
-                portfolio[ticker]['tranche_level'] = next_tranche_level
-                portfolio[ticker]['total_investment'] = new_total_investment
-                portfolio[ticker]['avg_price'] = new_avg_price
-
-        # Step 5: Check for BUY signals
-        logging.info(f"\n--- Checking Buy Conditions for {user['username']} ---")
-        buy_signals = strategy.get_buy_signals(stock_list, portfolio, all_data, max_open_positions)
-        for signal in buy_signals:
-            ticker = signal['ticker']
-            target_investment = base_capital * tranches["1"]
-            buy_price = signal['price']
-            quantity = round(target_investment / buy_price) if buy_price > 0 else 0
-            trade_cost = (quantity * buy_price) + brokerage
-            
-            if quantity > 0 and cash_balance >= trade_cost:
-                cash_balance -= trade_cost
-                # print(f"User '{user['username']}' buying {quantity} shares of {ticker} at ₹{buy_price:.2f} (Total Cost: ₹{trade_cost:.2f}) and cash balance now ₹{cash_balance:.2f}")
-                total_brokerage_session += brokerage
-                logging.info(f"BUY for {user['username']}: {ticker} Qty: {quantity} @ ₹{buy_price:.2f}")
-                
-                db.execute('INSERT INTO portfolios (user_id, ticker, quantity, avg_price, total_investment, tranche_level, entry_date) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                           (user_id, ticker, quantity, buy_price, quantity * buy_price, 1, datetime.now().strftime('%Y-%m-%d')))
-                db.execute('INSERT INTO transactions (user_id, date, ticker, action, quantity, price, value) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                           (user_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ticker, 'BUY', quantity, buy_price, quantity * buy_price))
-                
-                if user['telegram_chat_id']:
-                    message = f"✅ BUY Order Executed\n\n*Ticker:* {ticker}\n*Quantity:* {quantity}\n*Price:* ₹{buy_price:.2f}"
-                    send_telegram_message(user['telegram_chat_id'], message)
-
-                # Update local portfolio state
-                portfolio[ticker] = {'ticker': ticker} # Add a placeholder to prevent re-buying in the same run
-
-        # Step 6: Finalize and commit changes
-        logging.info(f"\n--- Strategy Execution Finished for {user['username']} ---")
-        
-        # ADDED LOGGING: Log the state of cash balance before committing to the database.
-        logging.info(f"[{user['username']}] PRE-COMMIT STATE: Initial Cash: {initial_cash_balance_for_log}, Calculated Final Cash: {cash_balance}, Brokerage This Run: {total_brokerage_session}")
-
-        db.execute('UPDATE users SET cash_balance = ?, total_brokerage = total_brokerage + ? WHERE id = ?', (cash_balance, total_brokerage_session, user_id))
-        db.commit()
-
-        logging.info(f"[{user['username']}] POST-COMMIT: Cash balance successfully updated in DB.")
-
-    except Exception as e:
-        db.rollback()
-        logging.error(f"CRITICAL ERROR for {user['username']}: {e}")
-        return log, "Error"
-    finally:
-        db.close()
-    
-    return log, "Strategy execution finished."
-
 # --- Background Schedulers ---
 def scheduled_screener_job(frequency='weekly'):
     """Scheduled job to run the stock screener."""
@@ -1077,29 +1169,6 @@ def update_live_prices():
 
         except Exception as e:
             logging.error(f"Scheduler: Error fetching prices: {e}")
-
-def master_strategy_scheduler():
-    """The main scheduler that checks and runs strategies for all eligible users."""
-    logging.info("Master Scheduler: Checking for users to run strategy...")
-    with app.app_context():
-        db = database.get_db()
-        users_to_run = db.execute('SELECT * FROM users WHERE auto_run_enabled = 1').fetchall()
-        db.close()
-        
-        today_weekday = datetime.now(pytz.timezone('Asia/Kolkata')).weekday() # Monday is 0, Friday is 4
-
-        for user in users_to_run:
-            should_run = False
-            logging.info(f"Master Scheduler: Checking user {user['username']} (ID: {user['id']}) for strategy execution.")
-            if user['execution_interval'] == '1d':
-                should_run = True
-                logging.info(f"Master Scheduler: User {user['username']} set to run daily strategy.")
-            elif user['execution_interval'] == '1wk' and today_weekday == 4: # 4 is Friday
-                should_run = True
-                logging.info(f"Master Scheduler: User {user['username']} set to run weekly strategy on Friday.")
-
-            if should_run:
-                execute_strategy_for_user(user['id'])
 
 
 if __name__ == '__main__':

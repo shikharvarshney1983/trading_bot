@@ -2,7 +2,7 @@
 
 from apscheduler.schedulers.background import BackgroundScheduler
 import time
-from app import app, update_live_prices, master_strategy_scheduler, scheduled_screener_job
+from app import app, update_live_prices, master_scheduler_sell_add, scheduled_screener_job, master_scheduler_watchlist, master_scheduler_buy
 
 def main():
     """
@@ -14,7 +14,18 @@ def main():
         
         # Add jobs from your app.py
         scheduler.add_job(update_live_prices, 'cron', day_of_week='mon-fri', hour='9-16', minute='30')
-        scheduler.add_job(master_strategy_scheduler, 'cron', day_of_week='mon-fri', hour=15, minute=0)
+        
+        # 1. Execute SELL and ADD-ON trades at 3:00 PM on weekdays
+        scheduler.add_job(master_scheduler_sell_add, 'cron', day_of_week='mon-fri', hour=15, minute=0
+        )
+
+        # 2. Generate user-specific watchlists at 4:00 PM on weekdays
+        scheduler.add_job(master_scheduler_watchlist, 'cron', day_of_week='mon-fri', hour=16, minute=0
+        )
+
+        # 3. Execute BUY trades from user's list at 9:15 AM on weekdays
+        scheduler.add_job(master_scheduler_buy, 'cron', day_of_week='mon-fri', hour=9, minute=15
+        )
         
         # Updated screener jobs
         # Daily runs after market close on weekdays

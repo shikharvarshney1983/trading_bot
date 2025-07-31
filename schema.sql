@@ -28,7 +28,11 @@ CREATE TABLE users (
     brokerage_per_trade REAL NOT NULL DEFAULT 25.0,
     max_open_positions INTEGER NOT NULL DEFAULT 15,
     tranche_sizes TEXT,
-    auto_run_enabled BOOLEAN NOT NULL DEFAULT 0
+    auto_run_enabled BOOLEAN NOT NULL DEFAULT 0,
+
+    -- New columns for decoupled buy workflow
+    daily_watchlist TEXT,         -- Stores the comma-separated list of potential buys generated at 4 PM
+    next_day_buy_list TEXT      -- Stores the user's final, manually entered list of stocks to buy
 );
 
 CREATE TABLE portfolios (

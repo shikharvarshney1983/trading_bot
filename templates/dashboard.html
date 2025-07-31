@@ -60,6 +60,31 @@
                 <div class="card kpi-card p-2"><div class="value" id="stat-avg-loss"></div><div class="label">Avg. Loss</div></div>
             </div>
         </div>
+        
+        <!-- NEW: Watchlist and Next Day Buys -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header fw-bold">Today's Watchlist & Next Day's Buys</div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Watchlist for Next Trading Day</h6>
+                                <p class="text-muted small">Generated daily at 4 PM. Copy this list to TradingView.</p>
+                                <div id="dailyWatchlistDisplay" class="watchlist-box mb-3">No watchlist generated yet.</div>
+                                <p><strong>Positions available to open: <span id="availableSlots">N/A</span></strong></p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>My Buy List for Next Trading Day</h6>
+                                <p class="text-muted small">Enter the stocks you want to buy from the watchlist above (comma-separated).</p>
+                                <textarea id="nextDayBuyList" class="form-control mb-2" rows="4" placeholder="e.g. RELIANCE,TCS,HDFCBANK"></textarea>
+                                <button id="saveBuyListBtn" class="btn btn-success w-100">Save Buy List for Tomorrow</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Portfolio & Transactions -->
         <div class="row">
@@ -300,6 +325,14 @@ document.addEventListener('DOMContentLoaded', function() {
         
         dailyPnlData = data.calendar_pnl;
         renderCalendar();
+
+        // NEW: Update watchlist and buy list section
+        const watchlist = data.settings.daily_watchlist || "No watchlist generated yet.";
+        document.getElementById('dailyWatchlistDisplay').textContent = watchlist.replace(/.NS/g, '');
+        document.getElementById('nextDayBuyList').value = data.settings.next_day_buy_list || '';
+
+        const availableSlots = data.settings.max_open_positions - Object.keys(data.portfolio).length;
+        document.getElementById('availableSlots').textContent = Math.max(0, availableSlots);
     }
 
     function updateSettingsUI(settings) {
@@ -340,6 +373,22 @@ document.addEventListener('DOMContentLoaded', function() {
             calendarEl.innerHTML += `<div class="calendar-day ${dayClass}"><div class="day-number">${day}</div>${pnlHtml}</div>`;
         }
     }
+    
+    // NEW: Save Buy List button event listener
+    document.getElementById('saveBuyListBtn').addEventListener('click', () => {
+        const buyList = document.getElementById('nextDayBuyList').value;
+        fetch(URLS.saveBuyList, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ buy_list: buyList })
+        }).then(res => res.json()).then(data => {
+            if(data.status === 'success') {
+                alert('Buy list saved for next trading day!');
+            } else {
+                alert('Error: ' + data.message);
+            }
+        });
+    });
     
     document.getElementById('prev-month').addEventListener('click', () => {
         calendarDate.setMonth(calendarDate.getMonth() - 1);
