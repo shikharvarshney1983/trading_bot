@@ -24,9 +24,7 @@
     <li class="nav-item" role="presentation">
         <button class="nav-link active" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary" type="button" role="tab">Dashboard</button>
     </li>
-    <li class="nav-item" role="presentation">
-        <a class="nav-link" href="{{ url_for('backtest_page') }}">Backtest</a>
-    </li>
+    <!-- FIX: Removed redundant Backtest tab from here -->
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="calendar-tab" data-bs-toggle="tab" data-bs-target="#calendar-view" type="button" role="tab">P/L Calendar</button>
     </li>
@@ -61,7 +59,7 @@
             </div>
         </div>
         
-        <!-- NEW: Watchlist and Next Day Buys -->
+        <!-- Watchlist and Next Day Buys -->
         <div class="row mb-4">
             <div class="col-md-12">
                 <div class="card">
@@ -70,8 +68,8 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <h6>Watchlist for Next Trading Day</h6>
-                                <p class="text-muted small">Generated daily at 4 PM. Copy this list to TradingView.</p>
-                                <div id="dailyWatchlistDisplay" class="watchlist-box mb-3">No watchlist generated yet.</div>
+                                <p class="text-muted small">Generated daily at 4 PM or by manual run. Copy this list to TradingView.</p>
+                                <div id="dailyWatchlistDisplay" class="watchlist-box mb-3 p-2 bg-light rounded">No watchlist generated yet.</div>
                                 <p><strong>Positions available to open: <span id="availableSlots">N/A</span></strong></p>
                             </div>
                             <div class="col-md-6">
@@ -198,13 +196,16 @@
                                 </label>
                             </div>
                             <small class="form-text text-muted">
-                                Runs execute at 3:00 PM IST. Daily runs on weekdays, weekly runs on Fridays.
+                                Automated jobs run based on the schedule. See scheduler.py for details.
                             </small>
                         </div>
                         <button id="saveScheduleBtn" class="btn btn-info">Save Schedule</button>
                         <hr>
-                        <button id="runStrategyBtn" class="btn btn-success">Run Strategy Manually</button>
-                        <button id="resetBtn" class="btn btn-danger">Reset Portfolio</button>
+                        <div class="d-grid gap-2 d-md-flex">
+                            <button id="runSellsWatchlistBtn" class="btn btn-warning">Run Sells & Generate Watchlist</button>
+                            <button id="executeBuysBtn" class="btn btn-success">Execute Buys from List</button>
+                            <button id="resetBtn" class="btn btn-danger ms-md-auto">Reset Portfolio</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -253,7 +254,6 @@
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // --- URL Definitions ---
-    // Use Jinja2 to render the correct API endpoints. This avoids parsing errors.
     const URLS = {
         getStatus: "{{ url_for('get_status') }}",
         getDynamicData: "{{ url_for('get_dynamic_data') }}",
@@ -262,7 +262,9 @@ document.addEventListener('DOMContentLoaded', function() {
         updateBalance: "{{ url_for('update_my_balance') }}",
         changePassword: "{{ url_for('change_my_password') }}",
         saveTelegramId: "{{ url_for('save_telegram_id') }}",
-        runStrategy: "{{ url_for('run_strategy') }}",
+        runSellsAndWatchlist: "{{ url_for('run_sells_and_watchlist') }}",
+        executeManualBuys: "{{ url_for('execute_manual_buys') }}",
+        saveBuyList: "{{ url_for('save_buy_list') }}",
         resetPortfolio: "{{ url_for('reset_portfolio') }}"
     };
 
@@ -326,7 +328,7 @@ document.addEventListener('DOMContentLoaded', function() {
         dailyPnlData = data.calendar_pnl;
         renderCalendar();
 
-        // NEW: Update watchlist and buy list section
+        // Update watchlist and buy list section
         const watchlist = data.settings.daily_watchlist || "No watchlist generated yet.";
         document.getElementById('dailyWatchlistDisplay').textContent = watchlist.replace(/.NS/g, '');
         document.getElementById('nextDayBuyList').value = data.settings.next_day_buy_list || '';
@@ -374,7 +376,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // NEW: Save Buy List button event listener
     document.getElementById('saveBuyListBtn').addEventListener('click', () => {
         const buyList = document.getElementById('nextDayBuyList').value;
         fetch(URLS.saveBuyList, {
@@ -464,18 +465,32 @@ document.addEventListener('DOMContentLoaded', function() {
         }).then(res => res.json()).then(data => alert(data.message));
     });
 
-    document.getElementById('runStrategyBtn').addEventListener('click', () => {
-        document.getElementById('logContainer').textContent = 'Executing strategy...';
-        fetch(URLS.runStrategy, { method: 'POST' })
+    document.getElementById('runSellsWatchlistBtn').addEventListener('click', () => {
+        if (!confirm('This will execute sells on your current portfolio and generate a new watchlist. Continue?')) return;
+        document.getElementById('logContainer').textContent = 'Executing sells and generating watchlist...';
+        fetch(URLS.runSellsAndWatchlist, { method: 'POST' })
         .then(res => res.json())
         .then(data => {
-            document.getElementById('logContainer').textContent = data.log.join('\n');
+            document.getElementById('logContainer').textContent = data.message;
+            alert(data.message);
+            fetchDynamicData();
+        });
+    });
+
+    document.getElementById('executeBuysBtn').addEventListener('click', () => {
+        if (!confirm('This will execute BUY orders for the stocks in your saved list. Continue?')) return;
+        document.getElementById('logContainer').textContent = 'Executing buy orders...';
+        fetch(URLS.executeManualBuys, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            document.getElementById('logContainer').textContent = data.message;
+            alert(data.message);
             fetchDynamicData();
         });
     });
 
     document.getElementById('resetBtn').addEventListener('click', () => {
-        if (confirm('Are you sure you want to reset your portfolio?')) {
+        if (confirm('Are you sure you want to reset your portfolio? This will delete all positions and transactions.')) {
             fetch(URLS.resetPortfolio, { method: 'POST' })
             .then(res => res.json())
             .then(data => {
@@ -499,7 +514,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     initialLoad();
-    setInterval(fetchDynamicData, 10000);
+    setInterval(fetchDynamicData, 30000); // Refresh every 30 seconds
 });
 </script>
 {% endblock %}

@@ -1,11 +1,10 @@
 # backtester.py
 import pandas as pd
 import yfinance as yf
-import pandas_ta as ta
 from datetime import datetime, timedelta
-import json
 import logging
-import numpy as np
+from collections import deque
+from data_utils import get_data_with_indicators # Use the centralized data utility
 
 class Backtester:
     def __init__(self, stock_tickers, start_date, end_date, interval, initial_capital, strategy_capital, tranche_sizes_pct, brokerage, max_positions, strategy):
@@ -18,7 +17,7 @@ class Backtester:
         self.tranche_sizes_pct = tranche_sizes_pct
         self.brokerage = brokerage
         self.max_positions = max_positions
-        self.strategy = strategy # The strategy object to use for signals
+        self.strategy = strategy
         
         self.cash = initial_capital
         self.portfolio = {}
@@ -33,97 +32,39 @@ class Backtester:
         self.log.append(message)
         logging.info(message)
 
-    def _fetch_data(self):
-        """Fetches all necessary historical data from yfinance."""
-        self._log("Fetching backtest data...")
-        all_tickers = self.stock_tickers + ['^NSEI']
-        # Fetch more historical data to ensure indicators are calculated correctly from the start
-        buffer_start_date = self.start_date - timedelta(days=300)
-        
-        data = yf.download(all_tickers, start=buffer_start_date, end=self.end_date + timedelta(days=1), interval=self.interval, progress=False, auto_adjust=True)
-        
-        if data.empty:
-            raise ValueError("No data downloaded for the given tickers and date range.")
-        
-        # Standardize column access
-        data.columns = data.columns.swaplevel(0, 1)
-        ticker_data = {}
-        for ticker in all_tickers:
-            if ticker in data and not data[ticker].empty:
-                df = data[ticker].copy()
-                # No need to rename columns with auto_adjust=True
-                ticker_data[ticker] = df
-
-        return ticker_data
-
-    def _calculate_indicators(self, data):
-        """Calculates all indicators needed for the strategy across all stocks."""
-        self._log("Calculating indicators for all stocks...")
-        if '^NSEI' not in data:
-            raise ValueError("Benchmark data (^NSEI) could not be fetched.")
-        
-        benchmark_data = data['^NSEI']
-
-        for ticker in self.stock_tickers:
-            if ticker not in data: continue
-            stock_data = data[ticker]
-            
-            # Ensure required columns are present
-            required_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
-            if not all(col in stock_data.columns for col in required_cols):
-                self._log(f"Warning: Skipping {ticker} due to missing OHLCV data.")
-                continue
-
-            # Calculate all indicators required by the MomentumStrategy
-            stock_data.ta.ema(length=11, append=True)
-            stock_data.ta.ema(length=21, append=True)
-            stock_data.ta.ema(length=50, append=True)
-            stock_data.ta.rsi(length=14, append=True)
-            stock_data.ta.adx(length=14, append=True)
-            stock_data.ta.donchian(lower_length=20, upper_length=20, append=True)
-            stock_data['Volume_MA10'] = stock_data['Volume'].rolling(window=10).mean()
-
-            # Calculate Relative Strength (RS)
-            roll_period = 50 if self.interval == '1wk' else 10
-            stock_ret = stock_data['Close'].pct_change().rolling(roll_period).sum()
-            bench_ret = benchmark_data['Close'].pct_change().rolling(roll_period).sum()
-            stock_data['RS'] = stock_ret / bench_ret
-            
-            data[ticker] = stock_data.dropna()
-        
-        return data
-
     def run(self):
         """Runs the backtest simulation day by day."""
-        all_ticker_data = self._fetch_data()
-        all_indicator_data = self._calculate_indicators(all_ticker_data)
-        
+        self._log("Fetching backtest data and calculating indicators...")
+        all_indicator_data = get_data_with_indicators(
+            tickers=self.stock_tickers,
+            benchmark_ticker='^NSEI',
+            interval=self.interval
+        )
+        if all_indicator_data is None:
+            raise ValueError("Failed to fetch data for backtest.")
+
         self._log("Starting backtest simulation...")
         
-        # Create a unified date index for the simulation loop
         all_dates = pd.Index([])
         for ticker in self.stock_tickers:
             if ticker in all_indicator_data:
                 all_dates = all_dates.union(all_indicator_data[ticker].index)
         
-        # Filter dates to be within the specified backtest range
-        simulation_dates = all_dates[(all_dates >= self.start_date) & (all_dates <= self.end_date)]
+        simulation_dates = all_dates[(all_dates >= self.start_date) & (all_dates <= self.end_date)].sort_values()
 
         for date in simulation_dates:
-            # Create a snapshot of data up to the current simulation date for the strategy
             current_data_snapshot = {
                 ticker: df[df.index <= date] 
                 for ticker, df in all_indicator_data.items() 
                 if ticker in all_indicator_data and not df.empty
             }
 
-            # --- Record Portfolio Value for this period ---
             current_holdings_value = 0
             for ticker, pos in self.portfolio.items():
                 if ticker in current_data_snapshot and not current_data_snapshot[ticker].empty:
                     price = current_data_snapshot[ticker].iloc[-1]['Close']
                     current_holdings_value += pos['quantity'] * price
-                else: # If no current price, use average price (should be rare)
+                else:
                     current_holdings_value += pos['quantity'] * pos['avg_price']
             
             self.portfolio_value_history.append({
@@ -131,13 +72,10 @@ class Backtester:
                 'value': self.cash + current_holdings_value
             })
 
-            # --- Get Signals from Strategy ---
             sell_signals = self.strategy.get_sell_signals(self.portfolio, current_data_snapshot)
             add_on_signals = self.strategy.get_add_on_signals(self.portfolio, current_data_snapshot)
             buy_signals = self.strategy.get_buy_signals(self.stock_tickers, self.portfolio, current_data_snapshot, self.max_positions)
 
-            # --- Execute Trades ---
-            # 1. Sells
             for signal in sell_signals:
                 ticker = signal['ticker']
                 position = self.portfolio[ticker]
@@ -151,7 +89,6 @@ class Backtester:
                 })
                 del self.portfolio[ticker]
 
-            # 2. Add-ons
             for signal in add_on_signals:
                 ticker = signal['ticker']
                 position = self.portfolio[ticker]
@@ -181,7 +118,6 @@ class Backtester:
                         'quantity': quantity, 'price': add_price, 'value': quantity * add_price
                     })
 
-            # 3. Buys
             for signal in buy_signals:
                 ticker = signal['ticker']
                 investment_amount = self.strategy_capital * self.tranche_sizes_pct["1"]
@@ -206,7 +142,7 @@ class Backtester:
         return self._generate_results(all_indicator_data)
 
     def _generate_results(self, all_indicator_data):
-        """Generates a summary of the backtest performance."""
+        """Generates a summary of the backtest performance with accurate FIFO P&L."""
         if not self.portfolio_value_history:
             return {"summary": {"error": "No data to generate results."}, "log": self.log}
 
@@ -224,45 +160,55 @@ class Backtester:
         daily_drawdown = df['value'] / rolling_max - 1.0
         max_drawdown = daily_drawdown.min() * 100
 
-        # Calculate realized P&L from transactions
+        # FIX: Accurate Realized P&L Calculation using FIFO
         trades_df = pd.DataFrame(self.transactions)
-        pnl_list, realized_pnl = [], 0
-        temp_portfolio = {}
-        for _, row in trades_df.iterrows():
+        investments = {} # Using a deque to store lots
+        realized_pnl = 0
+        pnl_list = []
+
+        for _, row in trades_df.sort_values(by='date').iterrows():
             ticker = row['ticker']
+            if ticker not in investments:
+                investments[ticker] = deque()
+
             if row['action'] in ['BUY', 'ADD']:
-                if ticker not in temp_portfolio:
-                    temp_portfolio[ticker] = {'cost': 0, 'qty': 0}
-                temp_portfolio[ticker]['cost'] += row['value']
-                temp_portfolio[ticker]['qty'] += row['quantity']
+                investments[ticker].append({'quantity': row['quantity'], 'price': row['price']})
+            
             elif row['action'] == 'SELL':
-                if ticker in temp_portfolio and temp_portfolio[ticker]['qty'] > 0:
-                    avg_cost = temp_portfolio[ticker]['cost'] / temp_portfolio[ticker]['qty'] if temp_portfolio[ticker]['qty'] > 0 else 0
-                    cost_of_sold = row['quantity'] * avg_cost
-                    profit = row['value'] - cost_of_sold
-                    pnl_list.append(profit)
-                    realized_pnl += profit
-                    temp_portfolio[ticker]['cost'] -= cost_of_sold
-                    temp_portfolio[ticker]['qty'] -= row['quantity']
-        
+                sell_quantity = row['quantity']
+                sell_value = row['value']
+                cost_of_sold_shares = 0
+
+                while sell_quantity > 0 and investments[ticker]:
+                    oldest_lot = investments[ticker][0]
+                    
+                    if oldest_lot['quantity'] <= sell_quantity:
+                        cost_of_sold_shares += oldest_lot['quantity'] * oldest_lot['price']
+                        sell_quantity -= oldest_lot['quantity']
+                        investments[ticker].popleft()
+                    else:
+                        cost_of_sold_shares += sell_quantity * oldest_lot['price']
+                        oldest_lot['quantity'] -= sell_quantity
+                        sell_quantity = 0
+                
+                profit = sell_value - cost_of_sold_shares
+                realized_pnl += profit
+                pnl_list.append(profit)
+
         wins = [p for p in pnl_list if p > 0]
         losses = [p for p in pnl_list if p < 0]
         win_ratio = (len(wins) / len(pnl_list) * 100) if pnl_list else 0
         avg_win = sum(wins) / len(wins) if wins else 0
         avg_loss = sum(losses) / len(losses) if losses else 0
 
-        # Calculate unrealized P&L for final holdings
         unrealized_pnl = 0
         final_portfolio_summary = []
         last_date_str = self.portfolio_value_history[-1]['date']
-        # FIX: The yfinance index is timezone-naive, so the comparison datetime should also be naive.
-        # The .tz_localize() call was causing the error.
-        last_date_dt = datetime.strptime(last_date_str, '%Y-%m-%d')
+        last_date_dt = pd.to_datetime(last_date_str)
 
         for ticker, pos in self.portfolio.items():
-            last_price = pos['avg_price'] # Default to avg price
+            last_price = pos['avg_price']
             if ticker in all_indicator_data:
-                # Filter data up to the last date of the simulation
                 relevant_prices = all_indicator_data[ticker][all_indicator_data[ticker].index <= last_date_dt]
                 if not relevant_prices.empty:
                     last_price = relevant_prices.iloc[-1]['Close']

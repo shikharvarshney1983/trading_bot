@@ -19,6 +19,8 @@ from functools import wraps
 from apscheduler.schedulers.background import BackgroundScheduler
 import io, logging
 import threading
+from collections import deque
+
 
 # --- Centralized Logging Configuration ---
 # This setup is done once to avoid duplicate handlers and encoding errors.
@@ -39,6 +41,7 @@ from trading_bot import TradingBot
 import stock_screener # Import the new screener script
 from backtester import Backtester # Import the new backtester class
 from strategy import MomentumStrategy # Import the new strategy class
+from data_utils import get_data_with_indicators
 
 # --- Load Environment Variables ---
 load_dotenv()
@@ -281,7 +284,7 @@ def run_backtest():
         start_date = datetime.strptime(params['start_date'], '%Y-%m-%d')
         end_date = datetime.strptime(params['end_date'], '%Y-%m-%d')
         
-        strategy_instance = MomentumStrategy() # Create an instance of the strategy
+        strategy_instance = MomentumStrategy()
         
         backtester = Backtester(
             stock_tickers=params['stock_list'],
@@ -293,7 +296,7 @@ def run_backtest():
             tranche_sizes_pct=json.loads(params['tranche_sizes']),
             brokerage=params['brokerage'],
             max_positions=params['max_positions'],
-            strategy=strategy_instance # Pass the strategy instance to the backtester
+            strategy=strategy_instance
         )
         results = backtester.run()
 
@@ -309,7 +312,6 @@ def run_backtest():
         return jsonify({'status': 'success', 'results': results})
     except Exception as e:
         logging.error(f"Backtest error for user '{current_user.username}': {e}")
-        # Use locals() to safely access 'backtester' if it was created
         log_data = backtester.log if 'backtester' in locals() else []
         return jsonify({'status': 'error', 'message': str(e), 'log': log_data}), 500
 
@@ -324,20 +326,33 @@ def get_backtest_results():
 def get_live_prices_bulk(tickers: list):
     global live_prices_cache, last_cache_update
     now = datetime.now()
-    if now - last_cache_update < cache_expiry:
-        tickers_to_fetch = [t for t in tickers if t not in live_prices_cache]
-    else:
-        tickers_to_fetch = tickers
+    
+    if now - last_cache_update > cache_expiry:
         live_prices_cache.clear()
+        
+    tickers_to_fetch = [t for t in tickers if t not in live_prices_cache]
+    
     if not tickers_to_fetch:
         return {t: live_prices_cache[t] for t in tickers if t in live_prices_cache}
+
     logging.info(f"Fetching live prices for: {tickers_to_fetch}")
     try:
-        data = yf.download(tickers=tickers_to_fetch, period='1d', progress=False)
+        data = yf.download(tickers=tickers_to_fetch, period='5d', progress=False)
+        
         if data.empty:
-            logging.error("yf.download returned empty dataframe for live prices.")
+            logging.error(f"yf.download returned empty dataframe for tickers: {tickers_to_fetch}")
             return {}
-        last_prices = data['Close'].iloc[-1]
+        
+        if isinstance(data.columns, pd.MultiIndex):
+            last_prices = data['Close'].ffill().iloc[-1]
+        else:
+            close_prices = data['Close'].ffill()
+            if close_prices.empty:
+                 last_price_value = None
+            else:
+                 last_price_value = close_prices.iloc[-1]
+            last_prices = pd.Series({tickers_to_fetch[0]: last_price_value})
+
         for ticker, price in last_prices.items():
             if pd.notna(price):
                 live_prices_cache[ticker] = price
@@ -346,22 +361,58 @@ def get_live_prices_bulk(tickers: list):
         logging.error(f"Error in get_live_prices_bulk: {e}", exc_info=True)
         if now - last_cache_update > cache_expiry:
             live_prices_cache.clear()
-    return {t: live_prices_cache[t] for t in tickers if t in live_prices_cache}
+            
+    return {t: live_prices_cache.get(t) for t in tickers}
+
+def calculate_realized_pnl_fifo(transactions):
+    investments = {}
+    realized_pnl = 0
+    daily_pnl = {}
+
+    for tx in transactions:
+        ticker = tx['ticker']
+        if ticker not in investments:
+            investments[ticker] = deque()
+
+        if tx['action'] in ['BUY', 'ADD']:
+            investments[ticker].append({'quantity': tx['quantity'], 'price': tx['price']})
+        
+        elif tx['action'] == 'SELL':
+            sell_quantity = tx['quantity']
+            sell_value = tx['value']
+            cost_of_sold_shares = 0
+
+            while sell_quantity > 0 and investments[ticker]:
+                oldest_lot = investments[ticker][0]
+                
+                if oldest_lot['quantity'] <= sell_quantity:
+                    cost_of_sold_shares += oldest_lot['quantity'] * oldest_lot['price']
+                    sell_quantity -= oldest_lot['quantity']
+                    investments[ticker].popleft()
+                else:
+                    cost_of_sold_shares += sell_quantity * oldest_lot['price']
+                    oldest_lot['quantity'] -= sell_quantity
+                    sell_quantity = 0
+            
+            pnl = sell_value - cost_of_sold_shares
+            realized_pnl += pnl
+            
+            trade_date = datetime.strptime(tx['date'].split(" ")[0], '%Y-%m-%d').strftime('%Y-%m-%d')
+            daily_pnl[trade_date] = daily_pnl.get(trade_date, 0) + pnl
+
+    return realized_pnl, daily_pnl
+
 
 def get_dashboard_data(user_id):
-    """Helper function to compute and return all dynamic dashboard data."""
     db = database.get_db()
     user_data = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
     portfolio_rows = db.execute('SELECT * FROM portfolios WHERE user_id = ?', (user_id,)).fetchall()
-    # FIX: Fetch transactions in chronological order (oldest first) for correct P&L calculation
     transaction_rows = db.execute('SELECT * FROM transactions WHERE user_id = ? ORDER BY date ASC', (user_id,)).fetchall()
     db.close()
 
     portfolio = {row['ticker']: {key: row[key] for key in row.keys()} for row in portfolio_rows}
-    # Convert to list of dicts for easier handling
     transactions = [dict(row) for row in transaction_rows]
     
-    # Efficiently fetch live prices for the entire portfolio
     portfolio_tickers = list(portfolio.keys())
     live_prices = {}
     if portfolio_tickers:
@@ -384,32 +435,7 @@ def get_dashboard_data(user_id):
 
     portfolio_value = holdings_value + user_data['cash_balance']
 
-    realized_pnl = 0
-    closed_trades = {}
-    daily_pnl = {}
-    
-    # FIX: Iterate through chronological transactions
-    for tx in transactions:
-        ticker = tx['ticker']
-        if tx['action'] in ['BUY', 'ADD']:
-            if ticker not in closed_trades:
-                closed_trades[ticker] = {'quantity': 0, 'cost': 0}
-            closed_trades[ticker]['quantity'] += tx['quantity']
-            closed_trades[ticker]['cost'] += tx['value']
-        
-        elif tx['action'] == 'SELL':
-            if ticker in closed_trades and closed_trades[ticker]['quantity'] > 0:
-                sell_qty = tx['quantity']
-                avg_buy_price = closed_trades[ticker]['cost'] / closed_trades[ticker]['quantity']
-                cost_of_sold_shares = sell_qty * avg_buy_price
-                pnl = tx['value'] - cost_of_sold_shares
-                realized_pnl += pnl
-                
-                trade_date = datetime.strptime(tx['date'].split(" ")[0], '%Y-%m-%d').strftime('%Y-%m-%d')
-                daily_pnl[trade_date] = daily_pnl.get(trade_date, 0) + pnl
-                
-                closed_trades[ticker]['quantity'] -= sell_qty
-                closed_trades[ticker]['cost'] -= cost_of_sold_shares
+    realized_pnl, daily_pnl = calculate_realized_pnl_fifo(transactions)
 
     pnl_values = [pnl for pnl in daily_pnl.values() if pnl != 0]
     wins = sum(1 for pnl in pnl_values if pnl > 0)
@@ -419,7 +445,6 @@ def get_dashboard_data(user_id):
     avg_win = sum(pnl for pnl in pnl_values if pnl > 0) / wins if wins > 0 else 0
     avg_loss = sum(pnl for pnl in pnl_values if pnl < 0) / losses if losses > 0 else 0
 
-    # Reverse transactions for display on the dashboard (most recent first)
     transactions.reverse()
 
     return {
@@ -440,7 +465,6 @@ def get_dashboard_data(user_id):
 @app.route('/api/status')
 @login_required
 def get_status():
-    """Endpoint for the initial page load, includes settings."""
     user_id = current_user.id
     db = database.get_db()
     user_data = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
@@ -454,7 +478,6 @@ def get_status():
 @app.route('/api/dynamic_data')
 @login_required
 def get_dynamic_data():
-    """Endpoint for periodic refreshes, returns only dynamic data."""
     user_id = current_user.id
     dashboard_data = get_dashboard_data(user_id)
     return jsonify(dashboard_data)
@@ -464,11 +487,19 @@ def get_dynamic_data():
 def save_buy_list():
     data = request.json
     buy_list_str = data.get('buy_list', '')
-    buy_list = [ticker.strip().upper() for ticker in buy_list_str.split(',') if ticker.strip()]
+    raw_tickers = [ticker.strip().upper() for ticker in buy_list_str.split(',') if ticker.strip()]
     
+    # FIX: Ensure every ticker has the .NS suffix
+    processed_tickers = []
+    for ticker in raw_tickers:
+        if not ticker.endswith('.NS'):
+            processed_tickers.append(ticker + '.NS')
+        else:
+            processed_tickers.append(ticker)
+            
     db = database.get_db()
     try:
-        db.execute('UPDATE users SET next_day_buy_list = ? WHERE id = ?', (','.join(buy_list), current_user.id))
+        db.execute('UPDATE users SET next_day_buy_list = ? WHERE id = ?', (','.join(processed_tickers), current_user.id))
         db.commit()
     except Exception as e:
         db.rollback()
@@ -478,15 +509,13 @@ def save_buy_list():
     
     return jsonify({'status': 'success', 'message': 'Buy list saved.'})
 
-# --- REFACTORED STRATEGY EXECUTION LOGIC ---
-
 def get_live_price(ticker):
-    """Wrapper for single price fetching, used by trading logic."""
     prices = get_live_prices_bulk([ticker])
     return prices.get(ticker)
 
 def execute_sell_and_add_trades(user_id):
     db = database.get_db()
+    user = None
     try:
         user = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
         if not user: return
@@ -497,17 +526,16 @@ def execute_sell_and_add_trades(user_id):
             logging.info(f"No open positions for {user['username']}. Skipping.")
             db.close()
             return
-        stock_list = list(portfolio.keys())
-        bot = TradingBot(stock_tickers=stock_list, benchmark_ticker='^NSEI', interval=user['execution_interval'])
-        all_data, _ = bot.get_analysis()
-        if all_data is None: raise Exception("Failed to fetch market data for sell/add.")
+        
         strategy = MomentumStrategy()
+        all_data = get_data_with_indicators(list(portfolio.keys()), '^NSEI', user['execution_interval'])
+        if all_data is None: raise Exception("Failed to fetch market data for sell/add.")
+        
         cash_balance = user['cash_balance']
         brokerage = user['brokerage_per_trade']
         base_capital = user['base_capital']
         tranches = json.loads(user['tranche_sizes'])
 
-        # Sell Logic
         sell_signals = strategy.get_sell_signals(portfolio, all_data)
         for signal in sell_signals:
             ticker, position = signal['ticker'], portfolio[signal['ticker']]
@@ -519,12 +547,10 @@ def execute_sell_and_add_trades(user_id):
             db.execute('INSERT INTO transactions (user_id, date, ticker, action, quantity, price, value) VALUES (?, ?, ?, ?, ?, ?, ?)',
                        (user_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ticker, 'SELL', position['quantity'], sell_price, sell_value))
             logging.info(f"SELL: {user['username']} - {ticker} @ {sell_price}")
-            # FIX: Add Telegram alert for SELL
             if user['telegram_chat_id']:
                 message = f"🔴 SELL Order Executed\n\n*Ticker:* {ticker}\n*Quantity:* {position['quantity']}\n*Price:* ₹{sell_price:.2f}\n*Reason:* {signal['reason']}"
                 send_telegram_message(user['telegram_chat_id'], message)
 
-        # Add-On Logic
         add_on_signals = strategy.get_add_on_signals(portfolio, all_data)
         for signal in add_on_signals:
             ticker, position = signal['ticker'], portfolio[signal['ticker']]
@@ -545,7 +571,6 @@ def execute_sell_and_add_trades(user_id):
                 db.execute('INSERT INTO transactions (user_id, date, ticker, action, quantity, price, value) VALUES (?, ?, ?, ?, ?, ?, ?)',
                            (user_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ticker, 'ADD', add_quantity, add_price, add_quantity * add_price))
                 logging.info(f"ADD: {user['username']} - {ticker} @ {add_price}")
-                # FIX: Add Telegram alert for ADD
                 if user['telegram_chat_id']:
                     message = f"🔵 ADD Order Executed\n\n*Ticker:* {ticker}\n*Quantity:* {add_quantity}\n*Price:* ₹{add_price:.2f}"
                     send_telegram_message(user['telegram_chat_id'], message)
@@ -553,13 +578,15 @@ def execute_sell_and_add_trades(user_id):
         db.execute('UPDATE users SET cash_balance = ? WHERE id = ?', (cash_balance, user_id))
         db.commit()
     except Exception as e:
-        logging.error(f"CRITICAL ERROR during SELL/ADD for {user['username']}: {e}", exc_info=True)
+        username = user['username'] if user else f"user_id:{user_id}"
+        logging.error(f"CRITICAL ERROR during SELL/ADD for {username}: {e}", exc_info=True)
         db.rollback()
     finally:
         if db: db.close()
 
 def generate_daily_watchlist(user_id):
     db = database.get_db()
+    user = None
     try:
         user = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
         if not user: return
@@ -570,10 +597,11 @@ def generate_daily_watchlist(user_id):
         if not stock_list: return
         portfolio_rows = db.execute('SELECT ticker FROM portfolios WHERE user_id = ?', (user_id,)).fetchall()
         portfolio = {row['ticker']: {} for row in portfolio_rows}
-        bot = TradingBot(stock_tickers=stock_list, benchmark_ticker='^NSEI', interval=user['execution_interval'])
-        all_data, _ = bot.get_analysis()
-        if all_data is None: raise Exception("Failed to fetch data for watchlist generation.")
+        
         strategy = MomentumStrategy()
+        all_data = get_data_with_indicators(stock_list, '^NSEI', user['execution_interval'])
+        if all_data is None: raise Exception("Failed to fetch data for watchlist generation.")
+        
         buy_signals = strategy.get_buy_signals(stock_list, portfolio, all_data, user['max_open_positions'])
         watchlist_tickers = [signal['ticker'] for signal in buy_signals]
         watchlist_str = ",".join(watchlist_tickers)
@@ -588,24 +616,22 @@ def generate_daily_watchlist(user_id):
                        f"Please log in to the dashboard to finalize your buy list for tomorrow.")
             send_telegram_message(user['telegram_chat_id'], message)
     except Exception as e:
-        logging.error(f"CRITICAL ERROR during WATCHLIST generation for {user['username']}: {e}", exc_info=True)
+        username = user['username'] if user else f"user_id:{user_id}"
+        logging.error(f"CRITICAL ERROR during WATCHLIST generation for {username}: {e}", exc_info=True)
         db.rollback()
     finally:
         if db: db.close()
 
-def execute_buy_trades(user_id, manual_buy_list=None):
+def execute_buy_trades(user_id):
     db = database.get_db()
+    user = None
     try:
         user = db.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
-        if not user: return
+        if not user or not user['next_day_buy_list']: return
 
-        buy_list = []
-        if manual_buy_list is not None:
-            buy_list = manual_buy_list
-        elif user['next_day_buy_list']:
-            buy_list = [s.strip() for s in user['next_day_buy_list'].split(',') if s.strip()]
-
+        buy_list = [s.strip() for s in user['next_day_buy_list'].split(',') if s.strip()]
         if not buy_list: return
+        
         logging.info(f"--- Executing BUYS for {user['username']}: {buy_list} ---")
         
         cash_balance = user['cash_balance']
@@ -616,7 +642,9 @@ def execute_buy_trades(user_id, manual_buy_list=None):
         for ticker in buy_list:
             if not ticker: continue
             buy_price = get_live_price(ticker)
-            if buy_price is None: continue
+            if buy_price is None: 
+                logging.warning(f"Could not get live price for {ticker}. Skipping buy.")
+                continue
             target_investment = base_capital * tranches["1"]
             quantity = round(target_investment / buy_price) if buy_price > 0 else 0
             trade_cost = (quantity * buy_price) + brokerage
@@ -627,7 +655,6 @@ def execute_buy_trades(user_id, manual_buy_list=None):
                 db.execute('INSERT INTO transactions (user_id, date, ticker, action, quantity, price, value) VALUES (?, ?, ?, ?, ?, ?, ?)',
                            (user_id, datetime.now().strftime('%Y-%m-%d %H:%M:%S'), ticker, 'BUY', quantity, buy_price, quantity * buy_price))
                 logging.info(f"BUY: {user['username']} - {ticker} Qty: {quantity} @ {buy_price}")
-                # FIX: Add Telegram alert for BUY
                 if user['telegram_chat_id']:
                     message = f"✅ BUY Order Executed\n\n*Ticker:* {ticker}\n*Quantity:* {quantity}\n*Price:* ₹{buy_price:.2f}"
                     send_telegram_message(user['telegram_chat_id'], message)
@@ -635,106 +662,88 @@ def execute_buy_trades(user_id, manual_buy_list=None):
         db.execute('UPDATE users SET cash_balance = ? WHERE id = ?', (cash_balance, user_id))
         db.commit()
     except Exception as e:
-        logging.error(f"CRITICAL ERROR during BUY execution for {user['username']}: {e}", exc_info=True)
+        username = user['username'] if user else f"user_id:{user_id}"
+        logging.error(f"CRITICAL ERROR during BUY execution for {username}: {e}", exc_info=True)
         db.rollback()
     finally:
         if db: db.close()
 
 # --- BACKGROUND SCHEDULER MASTER FUNCTIONS ---
 def master_scheduler_sell_add():
-    """3:00 PM Job: Checks and runs sell/add logic for eligible users."""
     with app.app_context():
         db = database.get_db()
         users = db.execute('SELECT id, username, execution_interval FROM users WHERE auto_run_enabled = 1').fetchall()
         db.close()
-        
-        today_weekday = datetime.now(pytz.timezone('Asia/Kolkata')).weekday() # Monday=0, Friday=4
-
+        today_weekday = datetime.now(pytz.timezone('Asia/Kolkata')).weekday()
         for user in users:
-            # Run for daily users every weekday. Run for weekly users only on Friday (4).
             if user['execution_interval'] == '1d' or (user['execution_interval'] == '1wk' and today_weekday == 4):
                 execute_sell_and_add_trades(user['id'])
-            else:
-                logging.info(f"Skipping 3:00 PM job for weekly user {user['username']} on a non-Friday.")
 
 def master_scheduler_watchlist():
-    """4:00 PM Job: Checks and generates watchlists for eligible users."""
     with app.app_context():
         db = database.get_db()
         users = db.execute('SELECT id, username, execution_interval FROM users WHERE auto_run_enabled = 1').fetchall()
         db.close()
-
         today_weekday = datetime.now(pytz.timezone('Asia/Kolkata')).weekday()
-
         for user in users:
             if user['execution_interval'] == '1d' or (user['execution_interval'] == '1wk' and today_weekday == 4):
                 generate_daily_watchlist(user['id'])
-            else:
-                logging.info(f"Skipping 4:00 PM job for weekly user {user['username']} on a non-Friday.")
 
 def master_scheduler_buy():
-    """9:15 AM Job: Checks and runs buy logic for eligible users."""
     with app.app_context():
         db = database.get_db()
         users = db.execute('SELECT id, username, execution_interval FROM users WHERE auto_run_enabled = 1').fetchall()
         db.close()
-        
         today_weekday = datetime.now(pytz.timezone('Asia/Kolkata')).weekday()
-
         for user in users:
-            # Buys happen on the next day, so for weekly users, this runs on Monday (0).
             if user['execution_interval'] == '1d' or (user['execution_interval'] == '1wk' and today_weekday == 0):
                  execute_buy_trades(user['id'])
-            else:
-                logging.info(f"Skipping 9:15 AM buy job for weekly user {user['username']} on a non-Monday.")
 
 @app.route('/api/save_settings', methods=['POST'])
 @login_required
 def save_settings():
     data = request.json
     user_id = current_user.id
-    
     new_settings = {}
-
     if 'stock_list' in data:
         stock_list_str = data.get('stock_list', '')
-        stock_list = [ticker.strip().upper() for ticker in stock_list_str.split(',') if ticker.strip()]
-        if len(stock_list) > 200:
+        raw_tickers = [ticker.strip().upper() for ticker in stock_list_str.split(',') if ticker.strip()]
+        if len(raw_tickers) > 200:
             return jsonify({'status': 'error', 'message': 'Stock list cannot exceed 200 tickers.'}), 400
-        new_settings['stock_list'] = ','.join(stock_list)
+        
+        # FIX: Ensure every ticker has the .NS suffix
+        processed_tickers = []
+        for ticker in raw_tickers:
+            if not ticker.endswith('.NS'):
+                processed_tickers.append(ticker + '.NS')
+            else:
+                processed_tickers.append(ticker)
+        
+        new_settings['stock_list'] = ','.join(processed_tickers)
 
     if 'interval' in data:
         new_settings['execution_interval'] = data['interval']
-
     try:
         if 'base_capital' in data and data['base_capital']:
             new_settings['base_capital'] = float(data['base_capital'])
-        
         if 'brokerage' in data and data['brokerage']:
             new_settings['brokerage_per_trade'] = float(data['brokerage'])
-        
         if 'max_positions' in data and data['max_positions']:
             new_settings['max_open_positions'] = int(data['max_positions'])
-            
     except (ValueError, TypeError):
         return jsonify({'status': 'error', 'message': 'Invalid number format for capital, brokerage, or max positions.'}), 400
-
     if 'tranches' in data and data['tranches']:
         try:
             tranches_obj = json.loads(data['tranches'])
             new_settings['tranche_sizes'] = json.dumps(tranches_obj)
         except json.JSONDecodeError:
             return jsonify({'status': 'error', 'message': 'Invalid JSON format for Tranches.'}), 400
-
     if not new_settings:
         return jsonify({'status': 'success', 'message': 'No settings were changed.'})
-
     set_clause = ', '.join([f"{key} = ?" for key in new_settings.keys()])
     values = list(new_settings.values())
     values.append(user_id)
-
     sql_query = f"UPDATE users SET {set_clause} WHERE id = ?"
-
     db = database.get_db()
     try:
         db.execute(sql_query, tuple(values))
@@ -744,7 +753,6 @@ def save_settings():
         return jsonify({'status': 'error', 'message': f'Database error: {e}'}), 500
     finally:
         db.close()
-    
     return jsonify({'status': 'success', 'message': 'Settings saved successfully!'})
 
 @app.route('/api/save_schedule_settings', methods=['POST'])
@@ -752,9 +760,7 @@ def save_settings():
 def save_schedule_settings():
     data = request.json
     user_id = current_user.id
-    
     is_enabled = data.get('auto_run_enabled', False)
-
     db = database.get_db()
     try:
         db.execute('UPDATE users SET auto_run_enabled = ? WHERE id = ?', (is_enabled, user_id))
@@ -764,7 +770,6 @@ def save_schedule_settings():
         return jsonify({'status': 'error', 'message': f'Database error: {e}'}), 500
     finally:
         db.close()
-        
     return jsonify({'status': 'success', 'message': 'Schedule settings saved!'})
 
 @app.route('/api/save_telegram_id', methods=['POST'])
@@ -785,7 +790,6 @@ def update_my_balance():
         amount_to_add = float(request.json.get('amount'))
     except (ValueError, TypeError):
         return jsonify({'status': 'error', 'message': 'Invalid amount.'}), 400
-
     db = database.get_db()
     db.execute('UPDATE users SET cash_balance = cash_balance + ? WHERE id = ?', (amount_to_add, current_user.id))
     db.commit()
@@ -797,55 +801,47 @@ def update_my_balance():
 def change_my_password():
     current_password = request.json.get('current_password')
     new_password = request.json.get('new_password')
-
     if not current_password or not new_password:
         return jsonify({'status': 'error', 'message': 'All fields are required.'}), 400
-    
     db = database.get_db()
     user = db.execute('SELECT password_hash FROM users WHERE id = ?', (current_user.id,)).fetchone()
-
     if not check_password_hash(user['password_hash'], current_password):
         db.close()
         return jsonify({'status': 'error', 'message': 'Current password is not correct.'}), 400
-
     new_hash = generate_password_hash(new_password)
     db.execute('UPDATE users SET password_hash = ? WHERE id = ?', (new_hash, current_user.id))
     db.commit()
     db.close()
     return jsonify({'status': 'success', 'message': 'Your password has been updated.'})
 
-def run_manual_strategy_cycle(user_id):
-    """Orchestrates an immediate, full trading cycle for a user."""
-    logging.info(f"--- INITIATING MANUAL RUN for user_id: {user_id} ---")
-    
-    # Step 1: Execute Sells and Adds
-    execute_sell_and_add_trades(user_id)
-    
-    # Step 2: Generate Watchlist
-    generate_daily_watchlist(user_id)
-    
-    # Step 3: Fetch the newly generated watchlist and execute buys
-    db = database.get_db()
-    user = db.execute('SELECT daily_watchlist FROM users WHERE id = ?', (user_id,)).fetchone()
-    db.close()
-    
-    if user and user['daily_watchlist']:
-        watchlist = user['daily_watchlist'].split(',')
-        logging.info(f"Manual Run: Fetched watchlist for user {user_id}: {watchlist}")
-        execute_buy_trades(user_id, manual_buy_list=watchlist)
-    else:
-        logging.info(f"Manual Run: No watchlist generated for user {user_id}, skipping buys.")
-        
-    # In a real app, you would aggregate logs from each step.
-    # For now, we return a simple confirmation.
-    return ["Manual strategy cycle finished. Check logs for details."]
-
-@app.route('/api/run_strategy', methods=['POST'])
+@app.route('/api/run_sells_and_watchlist', methods=['POST'])
 @login_required
-def run_strategy():
+def run_sells_and_watchlist():
     user_id = current_user.id
-    log, status = run_manual_strategy_cycle(user_id)
-    return jsonify({'status': status, 'log': log})
+    logging.info(f"--- MANUAL RUN (SELLS & WATCHLIST) for user_id: {user_id} ---")
+    try:
+        execute_sell_and_add_trades(user_id)
+        generate_daily_watchlist(user_id)
+        flash("Sell/Add executed and new watchlist generated successfully.", "success")
+        return jsonify({'status': 'success', 'message': 'Sell/Add executed and new watchlist generated.'})
+    except Exception as e:
+        logging.error(f"Error during manual sells/watchlist run for {user_id}: {e}", exc_info=True)
+        flash("An error occurred during the process. Check logs.", "danger")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/api/execute_manual_buys', methods=['POST'])
+@login_required
+def execute_manual_buys():
+    user_id = current_user.id
+    logging.info(f"--- MANUAL RUN (BUYS) for user_id: {user_id} ---")
+    try:
+        execute_buy_trades(user_id)
+        flash("Buy orders from your list have been executed.", "success")
+        return jsonify({'status': 'success', 'message': 'Buy orders executed.'})
+    except Exception as e:
+        logging.error(f"Error during manual buy run for {user_id}: {e}", exc_info=True)
+        flash("An error occurred during buy execution. Check logs.", "danger")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
 @app.route('/api/reset', methods=['POST'])
@@ -857,9 +853,7 @@ def reset_portfolio():
         user = db.execute('SELECT base_capital FROM users WHERE id = ?', (user_id,)).fetchone()
         if not user:
             return jsonify({'status': 'error', 'message': 'User not found'}), 404
-
         new_cash_balance = user['base_capital'] * 0.40
-
         db.execute('UPDATE users SET cash_balance = ?, total_brokerage = 0 WHERE id = ?', (new_cash_balance, user_id))
         db.execute('DELETE FROM portfolios WHERE user_id = ?', (user_id,))
         db.execute('DELETE FROM transactions WHERE user_id = ?', (user_id,))
@@ -871,7 +865,6 @@ def reset_portfolio():
         return jsonify({'status': 'error', 'message': str(e)}), 500
     finally:
         db.close()
-    
     return jsonify({'status': 'Portfolio reset successfully.'})
 
 # --- Stock Management Routes (Admin) ---
@@ -892,26 +885,21 @@ def add_stock():
     if not symbol:
         flash("Symbol cannot be empty.", "danger")
         return redirect(url_for('manage_stocks_page'))
-
     if not symbol.endswith('.NS'):
         symbol += '.NS'
-
     db = database.get_db()
     try:
         exists = db.execute('SELECT id FROM master_stocks WHERE symbol = ?', (symbol,)).fetchone()
         if exists:
             flash(f"Stock '{symbol}' already exists.", "warning")
             return redirect(url_for('manage_stocks_page'))
-            
         stock_info = yf.Ticker(symbol).info
         if not stock_info.get('longName'):
              flash(f"Stock '{symbol}' not found on yfinance.", "danger")
              return redirect(url_for('manage_stocks_page'))
-
         name = stock_info.get('longName', 'N/A')
         industry = stock_info.get('industry', 'N/A')
         sector = stock_info.get('sector', 'N/A')
-
         db.execute(
             'INSERT INTO master_stocks (symbol, name, industry, sector) VALUES (?, ?, ?, ?)',
             (symbol, name, industry, sector)
@@ -923,7 +911,6 @@ def add_stock():
         flash(f"Error adding stock '{symbol}': {e}", "danger")
     finally:
         db.close()
-        
     return redirect(url_for('manage_stocks_page'))
 
 @app.route('/api/add_stocks_bulk', methods=['POST'])
@@ -931,7 +918,6 @@ def add_stock():
 @admin_required
 def add_stocks_bulk():
     symbols_raw = ""
-    # Check for file upload first
     if 'stock_file' in request.files and request.files['stock_file'].filename != '':
         file = request.files['stock_file']
         if file and file.filename.endswith('.txt'):
@@ -941,40 +927,30 @@ def add_stocks_bulk():
             return redirect(url_for('manage_stocks_page'))
     else:
         symbols_raw = request.form.get('symbol_list', '')
-
     if not symbols_raw:
         flash("No symbols provided.", "warning")
         return redirect(url_for('manage_stocks_page'))
-
-    # Process the raw text to get a clean list of symbols
     symbols = {s.strip().upper() for s in symbols_raw.replace(',', '\n').splitlines() if s.strip()}
-    
     added_count = 0
     duplicate_count = 0
     not_found_symbols = []
-    
     db = database.get_db()
     try:
         existing_symbols = {row['symbol'] for row in db.execute('SELECT symbol FROM master_stocks').fetchall()}
-        
         for symbol in symbols:
             if not symbol.endswith('.NS'):
                 symbol += '.NS'
-
             if symbol in existing_symbols:
                 duplicate_count += 1
                 continue
-
             try:
                 stock_info = yf.Ticker(symbol).info
                 if not stock_info.get('longName'):
                     not_found_symbols.append(symbol)
                     continue
-
                 name = stock_info.get('longName', 'N/A')
                 industry = stock_info.get('industry', 'N/A')
                 sector = stock_info.get('sector', 'N/A')
-
                 db.execute(
                     'INSERT INTO master_stocks (symbol, name, industry, sector) VALUES (?, ?, ?, ?)',
                     (symbol, name, industry, sector)
@@ -982,23 +958,18 @@ def add_stocks_bulk():
                 added_count += 1
             except Exception:
                 not_found_symbols.append(symbol)
-        
         db.commit()
-
-        # Flash summary messages
         if added_count > 0:
             flash(f"Successfully added {added_count} new stocks.", "success")
         if duplicate_count > 0:
             flash(f"Skipped {duplicate_count} stocks that already exist in the list.", "info")
         if not_found_symbols:
             flash(f"Could not find the following symbols on yfinance: {', '.join(not_found_symbols)}", "danger")
-
     except Exception as e:
         db.rollback()
         flash(f"An error occurred during the bulk add process: {e}", "danger")
     finally:
         db.close()
-
     return redirect(url_for('manage_stocks_page'))
 
 
@@ -1026,15 +997,12 @@ def download_stock_list():
     db = database.get_db()
     stocks = db.execute('SELECT symbol, name, industry, sector FROM master_stocks ORDER BY symbol ASC').fetchall()
     db.close()
-
     df = pd.DataFrame([dict(row) for row in stocks])
-    
     output = io.BytesIO()
     writer = pd.ExcelWriter(output, engine='openpyxl')
     df.to_excel(writer, index=False, sheet_name='Master Stock List')
     writer.close()
     output.seek(0)
-    
     return send_file(
         output,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -1049,34 +1017,32 @@ def screener_page():
     frequency = request.args.get('frequency', 'weekly')
     if frequency not in ['daily', 'weekly', 'monthly']:
         frequency = 'weekly'
-
     db = database.get_db()
     results = db.execute('SELECT * FROM screener_results WHERE frequency = ? ORDER BY rank ASC', (frequency,)).fetchall()
     last_run = db.execute('SELECT MAX(run_date) as last_run FROM screener_results WHERE frequency = ?', (frequency,)).fetchone()
     db.close()
     last_run_date = last_run['last_run'] if last_run and last_run['last_run'] else None
-    
     return render_template('screener.html', results=results, last_run_date=last_run_date, current_frequency=frequency)
 
 def run_screener_in_background(frequency='weekly'):
-    """Wrapper function to run the screener and update its status."""
     with app.app_context():
         db = database.get_db()
         status_key = f'screener_status_{frequency}'
         try:
-            # Set status to 'running'
             db.execute("UPDATE app_state SET value = 'running' WHERE key = ?", (status_key,))
             db.commit()
+            db.close()
             logging.info(f"Background screener process started for {frequency}.")
             stock_screener.run_screener_process(frequency=frequency)
             logging.info(f"Background screener process finished for {frequency}.")
         except Exception as e:
-            logging.error(f"Error in background screener process for {frequency}: {e}")
+            logging.error(f"Error in background screener process for {frequency}: {e}", exc_info=True)
         finally:
-            # Set status back to 'idle' when done, regardless of success or failure
-            db.execute("UPDATE app_state SET value = 'idle' WHERE key = ?", (status_key,))
-            db.commit()
-            db.close()
+            db_final = database.get_db()
+            db_final.execute("UPDATE app_state SET value = 'idle' WHERE key = ?", (status_key,))
+            db_final.commit()
+            db_final.close()
+            logging.info(f"Screener status for {frequency} reset to 'idle'.")
 
 @app.route('/api/run_screener', methods=['POST'])
 @login_required
@@ -1085,23 +1051,18 @@ def run_screener_api():
     frequency = request.json.get('frequency', 'weekly')
     if frequency not in ['daily', 'weekly', 'monthly']:
         return jsonify({'status': 'error', 'message': 'Invalid frequency.'}), 400
-
     status_key = f'screener_status_{frequency}'
     db = database.get_db()
     status_row = db.execute("SELECT value FROM app_state WHERE key = ?", (status_key,)).fetchone()
     db.close()
-
     if status_row and status_row['value'] == 'running':
         return jsonify({
             'status': 'error',
             'message': f'A {frequency} watchlist process is already running. Please wait for it to complete.'
-        }), 409 # 409 Conflict
-
-    # Create and start the background thread
+        }), 409
     thread = threading.Thread(target=run_screener_in_background, args=(frequency,))
     thread.daemon = True
     thread.start()
-    
     return jsonify({
         'status': 'success', 
         'message': f'{frequency.capitalize()} watchlist process started in the background. You will be notified when it completes.'
@@ -1110,11 +1071,9 @@ def run_screener_api():
 @app.route('/api/screener_status')
 @login_required
 def screener_status():
-    """API endpoint to get the current status of the screener task."""
     frequency = request.args.get('frequency', 'weekly')
     if frequency not in ['daily', 'weekly', 'monthly']:
         return jsonify({'status': 'unknown'})
-        
     status_key = f'screener_status_{frequency}'
     db = database.get_db()
     status_row = db.execute("SELECT value FROM app_state WHERE key = ?", (status_key,)).fetchone()
@@ -1128,19 +1087,15 @@ def download_screener_results():
     frequency = request.args.get('frequency', 'weekly')
     if frequency not in ['daily', 'weekly', 'monthly']:
         frequency = 'weekly'
-
     db = database.get_db()
     results = db.execute('SELECT * FROM screener_results WHERE frequency = ? ORDER BY rank ASC', (frequency,)).fetchall()
     db.close()
-
     df = pd.DataFrame([dict(row) for row in results])
-    
     output = io.BytesIO()
     writer = pd.ExcelWriter(output, engine='openpyxl')
     df.to_excel(writer, index=False, sheet_name=f'{frequency.capitalize()} Screener Results')
     writer.close()
     output.seek(0)
-    
     return send_file(
         output,
         mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -1148,49 +1103,29 @@ def download_screener_results():
         download_name=f'stock_screener_results_{frequency}.xlsx'
     )
 
-# --- Background Schedulers ---
 def scheduled_screener_job(frequency='weekly'):
-    """Scheduled job to run the stock screener."""
     with app.app_context():
         logging.info(f"Scheduler: Running {frequency} stock screener job.")
-        stock_screener.run_screener_process(frequency=frequency)
+        run_screener_in_background(frequency=frequency)
         
 def update_live_prices():
-    """Scheduled job to fetch live prices for all tickers in portfolios."""
     logging.info("Scheduler: Running job to update live prices.")
     with app.app_context():
         db = database.get_db()
         tickers_rows = db.execute('SELECT DISTINCT ticker FROM portfolios').fetchall()
         db.close()
-        
         if not tickers_rows:
             logging.info("Scheduler: No tickers in any portfolio. Skipping.")
             return
-
         tickers = [row['ticker'] for row in tickers_rows]
-        try:
-            live_data = yf.download(tickers, period='1d', progress=False)
-            if live_data.empty:
-                logging.info("Scheduler: No data from yfinance.")
-                return
-            
-            # Handle single vs multiple tickers
-            if len(tickers) == 1:
-                last_prices = {tickers[0]: live_data['Close'].iloc[-1]}
-            else:
-                last_prices = live_data['Close'].iloc[-1].to_dict()
-
-            logging.info(f"Scheduler: Fetched prices: {last_prices}")
-
-            for ticker, price in last_prices.items():
-                if pd.notna(price):
-                    live_prices_cache[ticker] = price
-            logging.info(f"Scheduler: Cache updated. Current cache: {live_prices_cache}")
-
-        except Exception as e:
-            logging.error(f"Scheduler: Error fetching prices: {e}")
+        get_live_prices_bulk(tickers)
 
 
 if __name__ == '__main__':
-    # The reloader should be turned off when using APScheduler
+    with app.app_context():
+        db = database.get_db()
+        db.execute("UPDATE app_state SET value = 'idle' WHERE value = 'running'")
+        db.commit()
+        db.close()
+        logging.info("Reset any stuck screener statuses to 'idle' on startup.")
     app.run(debug=True, port=5000, use_reloader=False)

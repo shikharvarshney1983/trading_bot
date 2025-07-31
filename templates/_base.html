@@ -22,6 +22,8 @@
                 <a href="{{ url_for('screener_page') }}" class="btn btn-warning me-2">Watchlist</a>
                 <a href="{{ url_for('backtest_page') }}" class="btn btn-secondary me-2">Backtester</a>
                 {% if current_user.role == 'admin' %}
+                <!-- FIX: Added Manage Stocks button for admins -->
+                <a href="{{ url_for('manage_stocks_page') }}" class="btn btn-success me-2">Manage Stocks</a>
                 <a href="{{ url_for('admin_panel') }}" class="btn btn-info me-2">Admin Panel</a>
                 {% endif %}
                 <a href="{{ url_for('logout') }}" class="btn btn-outline-light">Logout</a>
