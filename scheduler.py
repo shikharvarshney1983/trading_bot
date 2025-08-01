@@ -16,16 +16,13 @@ def main():
         scheduler.add_job(update_live_prices, 'cron', day_of_week='mon-fri', hour='9-16', minute='30')
         
         # 1. Execute SELL and ADD-ON trades at 3:00 PM on weekdays
-        scheduler.add_job(master_scheduler_sell_add, 'cron', day_of_week='mon-fri', hour=15, minute=0
-        )
+        scheduler.add_job(master_scheduler_sell_add, 'cron', day_of_week='mon-fri', hour=15, minute=0)
 
         # 2. Generate user-specific watchlists at 4:00 PM on weekdays
-        scheduler.add_job(master_scheduler_watchlist, 'cron', day_of_week='mon-fri', hour=16, minute=0
-        )
+        scheduler.add_job(master_scheduler_watchlist, 'cron', day_of_week='mon-fri', hour=16, minute=0)
 
         # 3. Execute BUY trades from user's list at 9:15 AM on weekdays
-        scheduler.add_job(master_scheduler_buy, 'cron', day_of_week='mon-fri', hour=9, minute=15
-        )
+        scheduler.add_job(master_scheduler_buy, 'cron', day_of_week='mon-fri', hour=9, minute=15)
         
         # Updated screener jobs
         # Daily runs after market close on weekdays

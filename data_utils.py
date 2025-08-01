@@ -66,6 +66,8 @@ def get_data_with_indicators(tickers: list, benchmark_ticker: str, interval: str
             # --- Calculate all required indicators ---
             stock_data.ta.ema(length=11, append=True)
             stock_data.ta.ema(length=21, append=True)
+            # FIX: Add the missing EMA_40 calculation
+            stock_data.ta.ema(length=40, append=True)
             stock_data.ta.ema(length=50, append=True)
             stock_data.ta.rsi(length=14, append=True)
             stock_data.ta.adx(length=14, append=True)

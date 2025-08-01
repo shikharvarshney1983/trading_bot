@@ -43,16 +43,17 @@
                             <th>Rank</th>
                             <th>Symbol</th>
                             <th>Current Price</th>
+                            <!-- FIX: Add new columns for debugging -->
+                            <th>Prev. Close</th>
                             <th>Crossover Date</th>
                             <th>ADX</th>
                             <th>RSI</th>
                             <th>RPI</th>
                             <th>Volume Ratio</th>
-                            <th>Support</th>
-                            <th>Resistance</th>
-                            <th>Dist EMA11%</th>
-                            <th>Dist EMA21%</th>
-                            <th>52W Low</th>
+                            <th>EMA 11</th>
+                            <th>EMA 21</th>
+                            <th>EMA 40</th>
+                            <th>EMA 40 (Prev)</th>
                             <th>52W High</th>
                         </tr>
                     </thead>
@@ -67,22 +68,17 @@
                                   </a>
                               </td>
                               <td>{{ '%.2f'|format(stock.current_price) if stock.current_price is not none else 'N/A' }}</td>
+                              <!-- FIX: Display new values -->
+                              <td>{{ '%.2f'|format(stock.prev_close) if stock.prev_close is not none else 'N/A' }}</td>
                               <td>{{ stock.crossover_date or 'N/A' }}</td>
                               <td>{{ '%.2f'|format(stock.adx) if stock.adx is not none else 'N/A' }}</td>
                               <td>{{ '%.2f'|format(stock.rsi) if stock.rsi is not none else 'N/A' }}</td>
                               <td>{{ '%.2f'|format(stock.rpi) if stock.rpi is not none else 'N/A' }}</td>
-                              <td>
-                                  {% if stock.volume_ratio is not none %}
-                                      {{ '%.2f'|format(stock.volume_ratio) }}x
-                                  {% else %}
-                                      N/A
-                                  {% endif %}
-                              </td>
-                              <td>{{ '%.2f'|format(stock.support) if stock.support is not none else 'N/A' }}</td>
-                              <td>{{ '%.2f'|format(stock.resistance) if stock.resistance is not none else 'N/A' }}</td>
-                              <td>{{ '%.2f'|format(stock.dist_ema11_pct) if stock.dist_ema11_pct is not none else 'N/A' }}%</td>
-                              <td>{{ '%.2f'|format(stock.dist_ema21_pct) if stock.dist_ema21_pct is not none else 'N/A' }}%</td>
-                              <td>{{ '%.2f'|format(stock.fifty_two_week_low) if stock.fifty_two_week_low is not none else 'N/A' }}</td>
+                              <td>{{ '%.2f'|format(stock.volume_ratio) }}x</td>
+                              <td>{{ '%.2f'|format(stock.ema_11) if stock.ema_11 is not none else 'N/A' }}</td>
+                              <td>{{ '%.2f'|format(stock.ema_21) if stock.ema_21 is not none else 'N/A' }}</td>
+                              <td>{{ '%.2f'|format(stock.ema_40) if stock.ema_40 is not none else 'N/A' }}</td>
+                              <td>{{ '%.2f'|format(stock.ema_40_prev) if stock.ema_40_prev is not none else 'N/A' }}</td>
                               <td>{{ '%.2f'|format(stock.fifty_two_week_high) if stock.fifty_two_week_high is not none else 'N/A' }}</td>
                           </tr>
                           {% endif %}
