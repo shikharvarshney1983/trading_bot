@@ -162,7 +162,6 @@ def run_screener_process(frequency='weekly'):
             
             latest = data.iloc[-1]
             previous = data.iloc[-2]
-            print(latest, previous)
 
             is_making_higher_close = latest['Close'] > previous['Close']
             

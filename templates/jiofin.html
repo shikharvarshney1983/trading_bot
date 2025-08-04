@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jio Financial Services (JIOFIN) - Interactive Investment Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+            color: #1e293b;
+        }
+        .dashboard-card {
+            background-color: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+        }
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .card-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            line-height: 1;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(30, 41, 59, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0s 0.3s;
+        }
+        .modal-overlay.visible {
+            opacity: 1;
+            visibility: visible;
+            transition: opacity 0.3s ease;
+        }
+        .modal-container {
+            background-color: #f8fafc;
+            border-radius: 0;
+            width: 100vw;
+            height: 100vh;
+            max-width: 100vw;
+            max-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+            box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+        }
+        .modal-overlay.visible .modal-container {
+            transform: scale(1);
+        }
+        .modal-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: white;
+        }
+        #modal-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        #modal-close {
+            background: none;
+            border: none;
+            font-size: 2rem;
+            font-weight: 300;
+            color: #64748b;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        #modal-close:hover {
+            color: #1e293b;
+        }
+        .modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+        #scrollable-view-container section {
+            margin-bottom: 3rem;
+            scroll-margin-top: 100px;
+        }
+        .chart-container { position: relative; width: 100%; max-width: 900px; margin-left: auto; margin-right: auto; height: 400px; max-height: 500px; }
+        .small-chart-container { position: relative; width: 100%; max-width: 350px; margin-left: auto; margin-right: auto; height: 300px; max-height: 350px; }
+        @media (max-width: 768px) { .chart-container { height: 300px; } }
+        .year-btn { padding: 0.5rem 1.5rem; border: 1px solid #cbd5e1; border-radius: 9999px; transition: background-color 0.2s, color 0.2s; }
+        .year-btn.active { background-color: #1d4ed8; color: white; border-color: #1d4ed8; }
+        .details-content { max-height: 0; overflow: hidden; transition: max-height 0.5s ease-in-out; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="bg-blue-800 text-white p-4 shadow-lg sticky top-0 z-50">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="text-left">
+                <h1 class="text-xl md:text-3xl font-bold">Jio Financial Services Ltd. (JIOFIN)</h1>
+                <p id="header-subtitle" class="text-sm md:text-base opacity-80 mt-1">Click a section to view details</p>
+            </div>
+            <div class="flex items-center space-x-4">
+                 <img src="https://companieslogo.com/img/orig/JIOFIN.NS-69f1b4a3.png?t=1692510134" alt="JIOFIN Logo" class="h-10 w-10 rounded-full object-contain bg-white p-1" onerror="this.onerror=null;this.src='https://placehold.co/40x40/ffffff/000000?text=J';">
+                <button id="view-toggle-btn" class="bg-white/20 hover:bg-white/30 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                    Scrollable View
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main id="card-view-container" class="container mx-auto p-4 md:p-8">
+        <div id="dashboard-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+            <!-- Cards will be dynamically inserted here -->
+        </div>
+    </main>
+
+    <main id="scrollable-view-container" class="container mx-auto p-4 md:p-8 hidden">
+        <!-- Scrollable content will be injected here -->
+    </main>
+    
+    <div id="main-modal" class="modal-overlay">
+        <div class="modal-container">
+            <div class="modal-header">
+                <h2 id="modal-title"></h2>
+                <button id="modal-close">×</button>
+            </div>
+            <div id="modal-body" class="modal-body"></div>
+        </div>
+    </div>
+
+    <div id="section-storage" class="hidden">
+        <section id="overview" data-icon="🏢" data-title="Company Overview">
+            <h2 class="text-4xl font-bold text-blue-800 mb-6 text-center">Company Overview</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
+                <div class="lg:col-span-3 bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-semibold mb-3 text-blue-700">The Digital-First Challenger</h3>
+                    <p class="text-gray-700 leading-relaxed text-sm">Jio Financial Services (JIOFIN), demerged from Reliance Industries in August 2023, is a holding company engineered to build a dominant, digital-first financial services ecosystem. By integrating with Reliance's vast telecom (450M+ users) and retail (18k+ stores) networks, JFS aims to acquire customers at a fraction of the traditional cost. Its strategy revolves around a "Super App" that bundles lending, payments, insurance, and investments, creating a seamless, data-driven experience for a massive captive audience.</p>
+                    <div class="mt-4 grid grid-cols-2 gap-4 text-center">
+                        <div class="bg-blue-50 p-3 rounded">
+                            <div class="text-2xl font-bold text-blue-800">₹20,700 Cr+</div>
+                            <div class="text-sm text-gray-600">Initial Balance Sheet</div>
+                        </div>
+                        <div class="bg-blue-50 p-3 rounded">
+                            <div class="text-2xl font-bold text-blue-800">450M+</div>
+                            <div class="text-sm text-gray-600">Potential Customers</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-semibold mb-4 text-blue-700">Core Business Verticals</h3>
+                    <ul class="space-y-3">
+                        <li class="flex items-start"><span class="text-blue-600 mr-3 text-xl">💳</span><div><strong>Lending:</strong> Consumer, MSME, and secured loans.</div></li>
+                        <li class="flex items-start"><span class="text-blue-600 mr-3 text-xl">📱</span><div><strong>Payments:</strong> UPI, digital savings accounts via Jio Payments Bank.</div></li>
+                        <li class="flex items-start"><span class="text-blue-600 mr-3 text-xl">🛡️</span><div><strong>Insurance:</strong> Broking via partnerships with 29+ insurers.</div></li>
+                        <li class="flex items-start"><span class="text-blue-600 mr-3 text-xl">📈</span><div><strong>Asset Management:</strong> 50:50 JV with global giant BlackRock.</div></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="leadership" data-icon="👥" data-title="Leadership">
+            <h2 class="text-4xl font-bold text-blue-800 mb-4 text-center">Leadership & Governance</h2>
+            <p class="text-gray-600 mb-8 text-center max-w-3xl mx-auto">A blend of seasoned financial industry veterans and strategic oversight from the Reliance group.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div class="bg-white p-6 rounded-lg shadow text-center">
+                    <h3 class="text-lg font-bold">K.V. Kamath</h3>
+                    <p class="text-sm text-blue-600 font-semibold">Non-Executive Chairman</p>
+                    <p class="text-xs text-gray-500 mt-2">Architect of modern Indian banking, former Chairman of ICICI Bank.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow text-center">
+                    <h3 class="text-lg font-bold">Hitesh Kumar Sethia</h3>
+                    <p class="text-sm text-blue-600 font-semibold">MD & CEO</p>
+                    <p class="text-xs text-gray-500 mt-2">20+ years in financial services, ex-ICICI executive with deep operational expertise.</p>
+                </div>
+                 <div class="bg-white p-6 rounded-lg shadow text-center">
+                    <h3 class="text-lg font-bold">Isha M. Ambani</h3>
+                    <p class="text-sm text-blue-600 font-semibold">Non-Exec Director</p>
+                    <p class="text-xs text-gray-500 mt-2">Ensures strategic alignment with the broader Reliance ecosystem.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow text-center">
+                    <h3 class="text-lg font-bold">Rajiv Mehrishi</h3>
+                    <p class="text-sm text-blue-600 font-semibold">Independent Director</p>
+                    <p class="text-xs text-gray-500 mt-2">Former Finance Secretary, brings immense regulatory and governance experience.</p>
+                </div>
+            </div>
+             <div class="mt-8 bg-white p-6 rounded-lg shadow-md">
+                <h3 class="text-xl font-semibold mb-3 text-center text-blue-700">Shareholding Snapshot</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                    <div><div class="text-2xl font-bold">47.1%</div><div class="text-sm text-gray-500">Promoter Stake</div></div>
+                    <div><div class="text-2xl font-bold text-green-600">Zero</div><div class="text-sm text-gray-500">Pledged Shares</div></div>
+                    <div><div class="text-2xl font-bold">12.3%</div><div class="text-sm text-gray-500">FII Holding (📈)</div></div>
+                    <div><div class="text-2xl font-bold">14.9%</div><div class="text-sm text-gray-500">DII Holding (📈)</div></div>
+                </div>
+            </div>
+        </section>
+
+        <section id="historical" data-icon="📊" data-title="Historical Performance">
+            <h2 class="text-4xl font-bold text-blue-800 mb-4 text-center">Historical Performance</h2>
+            <p class="text-gray-600 mb-8 text-center max-w-3xl mx-auto">Explosive top-line growth since listing. Note: Profitability is currently skewed by high investment income.</p>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="chart-container">
+                    <canvas id="historicalPerformanceChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section id="financials" data-icon="➗" data-title="DuPont Analysis">
+            <h2 class="text-4xl font-bold text-blue-800 mb-4 text-center">DuPont Analysis: Deconstructing ROE</h2>
+            <p class="text-gray-600 mb-8 text-center max-w-3xl mx-auto">JFS's current ROE is a story of extremes: exceptionally high margins compensating for very low asset turnover, typical for a holding company in its initial phase.</p>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="h-[500px]">
+                    <canvas id="dupontChart"></canvas>
+                </div>
+            </div>
+        </section>
+        
+        <section id="competitive" data-icon="⚔️" data-title="Competitive Landscape">
+             <h2 class="text-4xl font-bold text-blue-800 mb-4 text-center">Competitive Landscape</h2>
+             <p class="text-gray-600 mb-8 text-center max-w-3xl mx-auto">JFS is a unique entity, but how does it stack up against other financial giants on key metrics?</p>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="flex flex-col md:flex-row md:items-center md:space-x-4 mb-4">
+                    <label for="peer-metric-selector" class="font-semibold mb-2 md:mb-0">Select Metric to Compare:</label>
+                    <select id="peer-metric-selector" class="p-2 border rounded-md bg-gray-50">
+                        <option value="p/e" selected>P/E Ratio</option>
+                        <option value="roe">RoE (%)</option>
+                        <option value="net_margin">Net Margin (%)</option>
+                        <option value="d/e">Net D/E Ratio</option>
+                    </select>
+                </div>
+                <div class="h-[400px] md:h-[450px]">
+                    <canvas id="peerComparisonChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <section id="valuation" data-icon="⚖️" data-title="Valuation Modeler">
+            <h2 class="text-4xl font-bold text-blue-800 mb-4 text-center">Valuation Modeler</h2>
+            <p class="text-gray-600 mb-8 text-center max-w-3xl mx-auto">The market is pricing in massive future growth. Use the sliders to model your own scenarios and see how assumptions impact the projected share price.</p>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                 <div class="flex justify-center space-x-2 md:space-x-4 mb-6" id="year-selector">
+                    <button data-year="27" class="year-btn active">FY27</button>
+                    <button data-year="28" class="year-btn">FY28</button>
+                    <button data-year="30" class="year-btn">FY30</button>
+                </div>
+                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2">
+                        <div class="h-[450px]">
+                            <canvas id="valuationChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="space-y-6">
+                        <div>
+                            <label for="sales-growth-slider" class="block font-semibold mb-1">Revenue CAGR Expectation: <span id="sales-growth-value" class="font-bold text-blue-600">35%</span></label>
+                            <input id="sales-growth-slider" type="range" min="20" max="50" value="35" step="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div>
+                            <label for="margin-slider" class="block font-semibold mb-1">Projected PBT Margin: <span id="margin-value" class="font-bold text-blue-600">40.0%</span></label>
+                            <input id="margin-slider" type="range" min="25" max="50" value="40" step="0.5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div>
+                            <label for="pe-multiple-slider" class="block font-semibold mb-1">Target P/E Multiple: <span id="pe-multiple-value" class="font-bold text-blue-600">60x</span></label>
+                            <input id="pe-multiple-slider" type="range" min="30" max="80" value="60" step="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                        </div>
+                        <div class="bg-gray-100 p-4 rounded-lg text-center">
+                            <div id="custom-valuation-title" class="text-gray-600">Your Custom Projected Price (FY27)</div>
+                            <div id="custom-valuation-output" class="text-3xl font-bold text-blue-800 mt-1">₹654</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="rationale" data-icon="👍👎" data-title="Investment Rationale">
+            <h2 class="text-4xl font-bold text-blue-800 mb-4 text-center">Investment Rationale</h2>
+            <p class="text-gray-600 mb-8 text-center max-w-3xl mx-auto">A balanced view of the primary factors supporting an investment thesis alongside the key risks to consider.</p>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-2xl font-semibold text-green-600 mb-4">Investment Thesis (The Bull Case)</h3>
+                    <ul class="space-y-3">
+                        <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🌐</span><div><strong>Unmatched Ecosystem:</strong> Access to 450M+ users and retail network creates an unparalleled, low-cost distribution moat.</div></li>
+                        <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🚀</span><div><strong>Digital-First Disruption:</strong> Built as a tech company first, positioned to capture the massive shift to digital finance in India.</div></li>
+                        <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🤝</span><div><strong>Partnership Power:</strong> JV with BlackRock lends immediate global credibility and expertise in asset management.</div></li>
+                        <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">💰</span><div><strong>Fortress Balance Sheet:</strong> Launched with a massive capital base and a debt-free structure, providing immense firepower for growth.</div></li>
+                    </ul>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-2xl font-semibold text-red-600 mb-4">Antithesis (The Bear Case)</h3>
+                    <ul class="space-y-3">
+                        <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">⚖️</span><div><strong>Extreme Valuation:</strong> Current P/E of ~130x prices in years of flawless execution, leaving no margin for error.</div></li>
+                        <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">⚙️</span><div><strong>Execution Risk:</strong> Scaling multiple complex financial businesses simultaneously is a monumental task with no historical track record.</div></li>
+                        <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">📉</span><div><strong>Profitability Puzzle:</strong> True profitability from core lending operations is unproven and could be much lower than current reported margins.</div></li>
+                        <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🏛️</span><div><strong>Regulatory Scrutiny:</strong> As a large, systemically important entity, JFS will face intense and evolving regulatory oversight from the RBI.</div></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <section id="conclusion" data-icon="🏁" data-title="Conclusion">
+             <h2 class="text-4xl font-bold text-blue-800 mb-4 text-center">Conclusion & Analyst View</h2>
+             <p class="text-gray-600 mb-8 text-center max-w-3xl mx-auto">Synthesizing the research into a final verdict, acknowledging the high-risk, high-reward nature of the opportunity.</p>
+             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
+                    <h3 class="text-xl font-semibold text-blue-800 mb-2">Analysis 1: High Conviction with Caution</h3>
+                    <p class="text-sm text-gray-700">Views JFS as a compelling, once-in-a-decade opportunity to invest in a platform poised for massive scale. The combination of ecosystem, capital, and brand is unmatched. Suitable for aggressive, long-term investors.</p>
+                    <div class="mt-4 text-center text-3xl font-bold text-blue-800">Conviction: 7.7 / 10</div>
+                </div>
+                 <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-amber-500">
+                    <h3 class="text-xl font-semibold text-amber-800 mb-2">Analysis 2: Moderate / Speculative</h3>
+                    <p class="text-sm text-gray-700">Classifies JFS as a "lottery-ticket" stock. The potential is enormous, but the valuation is astronomical and the path to profitability is uncertain. Advises waiting for tangible proof of execution before committing significant capital.</p>
+                     <div class="mt-4 text-center text-3xl font-bold text-amber-800">Conviction: Speculative</div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <footer class="text-center p-4 mt-8">
+        <p class="text-xs text-gray-500">Disclaimer: This presentation is for informational and educational purposes only and should not be considered as investment advice. The information provided is not intended to be a recommendation to buy or sell any specific security. Investors should conduct their own due diligence.</p>
+    </footer>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // --- Globals and State ---
+        let currentView = 'cards';
+        let activeCharts = [];
+        let isScrollContentInitialized = false;
+
+        // --- DOM Element References ---
+        const sectionStorage = document.getElementById('section-storage');
+        const dashboardGrid = document.getElementById('dashboard-grid');
+        const mainModal = document.getElementById('main-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalBody = document.getElementById('modal-body');
+        const modalClose = document.getElementById('modal-close');
+        const viewToggleButton = document.getElementById('view-toggle-btn');
+        const cardViewContainer = document.getElementById('card-view-container');
+        const scrollableViewContainer = document.getElementById('scrollable-view-container');
+        const headerSubtitle = document.getElementById('header-subtitle');
+
+        /**
+         * Populates the dashboard with cards.
+         */
+        function createDashboardCards() {
+            const sections = sectionStorage.querySelectorAll('section');
+            sections.forEach(section => {
+                const card = document.createElement('div');
+                card.className = 'dashboard-card';
+                card.dataset.target = `#${section.id}`;
+                const icon = section.dataset.icon || '📁';
+                const title = section.dataset.title || section.querySelector('h2').textContent;
+                card.innerHTML = `<div class="card-icon">${icon}</div><h3 class="text-lg font-semibold text-slate-800">${title}</h3>`;
+                dashboardGrid.appendChild(card);
+            });
+        }
+        
+        /**
+         * Toggles between 'cards' and 'scroll' views.
+         */
+        function toggleView() {
+            activeCharts.forEach(chart => chart.destroy());
+            activeCharts = [];
+
+            if (currentView === 'cards') {
+                currentView = 'scroll';
+                cardViewContainer.classList.add('hidden');
+                scrollableViewContainer.classList.remove('hidden');
+                viewToggleButton.textContent = 'Card View';
+                headerSubtitle.textContent = 'Scroll to a section';
+                
+                if (!isScrollContentInitialized) {
+                    const sections = sectionStorage.querySelectorAll('section');
+                    sections.forEach(section => {
+                        scrollableViewContainer.appendChild(section.cloneNode(true));
+                    });
+                    isScrollContentInitialized = true;
+                }
+                
+                initializeAllScripts(scrollableViewContainer);
+
+            } else {
+                currentView = 'cards';
+                cardViewContainer.classList.remove('hidden');
+                scrollableViewContainer.classList.add('hidden');
+                viewToggleButton.textContent = 'Scrollable View';
+                headerSubtitle.textContent = 'Click a section to view details';
+            }
+        }
+
+        /**
+         * Initializes all interactive elements within a given container.
+         */
+        function initializeAllScripts(container) {
+            const historicalCanvas = container.querySelector('#historicalPerformanceChart');
+            if(historicalCanvas) {
+                const data = { labels: ['FY23', 'FY24', 'FY25'], datasets: [ { label: 'Revenue (₹ Cr)', data: [235, 1842, 2079], backgroundColor: '#2563eb', yAxisID: 'y' }, { label: 'Net Income (₹ Cr)', data: [313, 1605, 1613], backgroundColor: '#f59e0b', yAxisID: 'y' }, { type: 'line', label: 'Net Margin (%)', data: [133.2, 87.1, 77.6], borderColor: '#ef4444', backgroundColor: '#ef4444', yAxisID: 'y1', tension: 0.2 } ] };
+                const chart = new Chart(historicalCanvas.getContext('2d'), { type: 'bar', data, options: { responsive: true, maintainAspectRatio: false, scales: { y: { display: true, position: 'left', title: { display: true, text: 'Amount (₹ Cr)' } }, y1: { display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Net Margin (%)' } } }, plugins: { tooltip: { mode: 'index', intersect: false } } } });
+                activeCharts.push(chart);
+            }
+
+            const dupontCanvas = container.querySelector('#dupontChart');
+            if (dupontCanvas) {
+                 const data = { labels: ['FY24', 'FY25'], datasets: [ { label: 'Return on Equity (%)', data: [1.3, 1.3], borderColor: '#1d4ed8', backgroundColor: '#1d4ed8', tension: 0.1 }, { label: 'Net Profit Margin (%)', data: [87.1, 77.6], borderColor: '#16a34a', backgroundColor: '#16a34a', tension: 0.1 }, { label: 'Asset Turnover (x)', data: [0.015, 0.015], borderColor: '#f97316', backgroundColor: '#f97316', tension: 0.1 }, { label: 'Equity Multiplier (x)', data: [1.0, 1.08], borderColor: '#dc2626', backgroundColor: '#dc2626', tension: 0.1 } ] };
+                const chart = new Chart(dupontCanvas.getContext('2d'), { type: 'line', data, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Value' } } }, plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y.toFixed(2)}${c.dataset.label.includes('%') ? '%' : 'x'}` } } } } });
+                activeCharts.push(chart);
+            }
+
+            const peerComparisonCanvas = container.querySelector('#peerComparisonChart');
+            if (peerComparisonCanvas) {
+                const peerData = { labels: ['JIOFIN', 'Bajaj Finance', 'Shriram Fin', 'M&M Fin'], 'p/e': { data: [129, 34, 14, 16], label: 'P/E Ratio' }, 'roe': { data: [1.3, 18.1, 13.4, 10.9], label: 'RoE (%)' }, 'net_margin': { data: [77.6, 24.1, 22.9, 15.2], label: 'Net Margin (%)' }, 'd/e': { data: [0.0, 3.8, 4.2, 3.0], label: 'Net D/E Ratio' } };
+                const chart = new Chart(peerComparisonCanvas.getContext('2d'), { type: 'bar', data: { labels: peerData.labels, datasets: [{ label: peerData['p/e'].label, data: peerData['p/e'].data, backgroundColor: ['#1d4ed8', '#16a34a', '#f97316', '#9333ea'] }] }, options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', scales: { x: { beginAtZero: true } }, plugins: { legend: { display: false } } } });
+                activeCharts.push(chart);
+                
+                const selector = container.querySelector('#peer-metric-selector');
+                if (selector) {
+                    selector.addEventListener('change', (e) => { 
+                        const metric = e.target.value; 
+                        chart.data.datasets[0].data = peerData[metric].data; 
+                        chart.data.datasets[0].label = peerData[metric].label; 
+                        chart.update(); 
+                    });
+                }
+            }
+            
+            const valuationCanvas = container.querySelector('#valuationChart');
+            if (valuationCanvas) {
+                const basePriceCurrent = 329.50;
+                const valuationChart = new Chart(valuationCanvas.getContext('2d'), { type: 'bar', data: { labels: ['Bear', 'Base', 'Bull', 'Your Scenario'], datasets: [{ label: 'Projected Share Price', data: [], backgroundColor: ['#ef4444', '#6b7280', '#22c55e', '#3b82f6'] }] }, 
+                    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: false, title: { display: true, text: 'Projected Price (₹)' } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `Price: ₹${c.parsed.y.toFixed(0)}` } } } } 
+                });
+                activeCharts.push(valuationChart);
+                const assumptions = { bear: { growth: 25, margin: 30, pe: 40 }, base: { growth: 35, margin: 40, pe: 60 }, bull: { growth: 50, margin: 45, pe: 75 } };
+                const salesSlider = container.querySelector('#sales-growth-slider'); const marginSlider = container.querySelector('#margin-slider'); const peSlider = container.querySelector('#pe-multiple-slider'); const salesValue = container.querySelector('#sales-growth-value'); const marginValue = container.querySelector('#margin-value'); const peValue = container.querySelector('#pe-multiple-value'); const customValuationOutput = container.querySelector('#custom-valuation-output'); const customValuationTitle = container.querySelector('#custom-valuation-title'); const yearSelector = container.querySelector('#year-selector');
+                
+                function calculatePrice(year, salesCAGR, pbtMargin, peMultiple) { 
+                    const y = parseInt(year) - 25;
+                    const revenue = 2079 * Math.pow(1 + (salesCAGR / 100), y);
+                    const pbt = revenue * (pbtMargin / 100);
+                    const pat = pbt * (1 - 0.25); // Assume 25% tax
+                    return (pat / 635.3) * peMultiple; // 635.3 Cr shares outstanding
+                }
+                
+                function updateValuationChart(year) {
+                    const g = parseFloat(salesSlider.value);
+                    const m = parseFloat(marginSlider.value);
+                    const p = parseFloat(peSlider.value);
+                    salesValue.textContent = `${g}%`;
+                    marginValue.textContent = `${m.toFixed(1)}%`;
+                    peValue.textContent = `${p}x`;
+                    
+                    const bear = calculatePrice(year, assumptions.bear.growth, assumptions.bear.margin, assumptions.bear.pe);
+                    const base = calculatePrice(year, assumptions.base.growth, assumptions.base.margin, assumptions.base.pe);
+                    const bull = calculatePrice(year, assumptions.bull.growth, assumptions.bull.margin, assumptions.bull.pe);
+                    const custom = calculatePrice(year, g, m, p);
+                    
+                    customValuationTitle.textContent = `Your Custom Projected Price (FY${year})`;
+                    customValuationOutput.textContent = `₹${custom.toFixed(0)}`;
+                    valuationChart.data.datasets[0].data = [bear, base, bull, custom];
+                    valuationChart.options.scales.y.title.text = `Projected Price (FY${year})`;
+                    valuationChart.update();
+                }
+
+                yearSelector.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { yearSelector.querySelectorAll('button').forEach(btn => btn.classList.remove('active')); e.target.classList.add('active'); updateValuationChart(e.target.dataset.year); } });
+                [salesSlider, marginSlider, peSlider].forEach(slider => { slider.addEventListener('input', () => { const activeYear = yearSelector.querySelector('.active').dataset.year; updateValuationChart(activeYear); }); });
+                updateValuationChart('27');
+            }
+        }
+
+        viewToggleButton.addEventListener('click', toggleView);
+
+        dashboardGrid.addEventListener('click', (e) => {
+            const card = e.target.closest('.dashboard-card');
+            if (card) {
+                const targetId = card.dataset.target;
+                const section = sectionStorage.querySelector(targetId);
+                if (section) {
+                    modalTitle.textContent = section.dataset.title || section.querySelector('h2').textContent;
+                    modalBody.innerHTML = section.innerHTML;
+                    mainModal.classList.add('visible');
+                    initializeAllScripts(modalBody);
+                }
+            }
+        });
+
+        const closeModal = () => {
+            mainModal.classList.remove('visible');
+            activeCharts.forEach(chart => chart.destroy());
+            activeCharts = [];
+            modalBody.innerHTML = '';
+        };
+
+        modalClose.addEventListener('click', closeModal);
+        mainModal.addEventListener('click', (e) => {
+            if (e.target === mainModal) closeModal();
+        });
+
+        createDashboardCards();
+    });
+</script>
+
+</body>
+</html>
