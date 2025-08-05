@@ -266,6 +266,10 @@ def dashboard():
 def tcpl():
     return render_template('tcplanalysis.html')
 
+@app.route('/jiofin')
+def jiofin():
+    return render_template('jiofin.html')
+
 # --- Backtester Routes ---
 @app.route('/backtest')
 @login_required

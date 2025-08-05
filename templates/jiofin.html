@@ -107,11 +107,10 @@
             scroll-margin-top: 100px;
         }
         .chart-container { position: relative; width: 100%; max-width: 900px; margin-left: auto; margin-right: auto; height: 400px; max-height: 500px; }
-        .small-chart-container { position: relative; width: 100%; max-width: 350px; margin-left: auto; margin-right: auto; height: 300px; max-height: 350px; }
+        .small-chart-container { position: relative; width: 100%; max-width: 450px; margin-left: auto; margin-right: auto; height: 300px; max-height: 350px; }
         @media (max-width: 768px) { .chart-container { height: 300px; } }
-        .year-btn { padding: 0.5rem 1.5rem; border: 1px solid #cbd5e1; border-radius: 9999px; transition: background-color 0.2s, color 0.2s; }
-        .year-btn.active { background-color: #1d4ed8; color: white; border-color: #1d4ed8; }
-        .details-content { max-height: 0; overflow: hidden; transition: max-height 0.5s ease-in-out; }
+        .year-btn, .quarter-btn { padding: 0.5rem 1.5rem; border: 1px solid #cbd5e1; border-radius: 9999px; transition: background-color 0.2s, color 0.2s; }
+        .year-btn.active, .quarter-btn.active { background-color: #1d4ed8; color: white; border-color: #1d4ed8; }
     </style>
 </head>
 <body class="antialiased">
@@ -152,106 +151,195 @@
     </div>
 
     <div id="section-storage" class="hidden">
+        <section id="disclosures" data-icon="📋" data-title="Analyst Disclosures">
+            <h2 class="text-4xl font-bold text-blue-800 mb-4 text-center">Analyst Disclosures</h2>
+            <p class="text-gray-600 mb-8 text-center max-w-3xl mx-auto">Disclosures as per the requirements of the Securities and Exchange Board of India (Research Analysts) Regulations, 2014.</p>
+            <div class="bg-white p-6 rounded-lg shadow-md overflow-x-auto">
+                <table class="w-full text-left text-sm align-middle">
+                    <thead class="bg-gray-100">
+                        <tr>
+                            <th class="p-3 font-semibold w-4/5">Disclosure Point</th>
+                            <th class="p-3 font-semibold text-center">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b"><td class="p-3">1. SEBI Registration Status</td><td class="p-3 text-center font-medium">Not Registered</td></tr>
+                        <tr class="border-b bg-gray-50"><td class="p-3">2. Financial interest in the subject company</td><td class="p-3 text-center font-medium text-amber-600">Maybe</td></tr>
+                        <tr class="border-b"><td class="p-3">3. Actual/beneficial ownership of 1% or more securities</td><td class="p-3 text-center font-medium text-red-600">No</td></tr>
+                        <tr class="border-b bg-gray-50"><td class="p-3">4. Any other material conflict of interest</td><td class="p-3 text-center font-medium text-red-600">No</td></tr>
+                        <tr class="border-b"><td class="p-3">5. Managed or co-managed public offering in past 12 months</td><td class="p-3 text-center font-medium text-red-600">No</td></tr>
+                        <tr class="border-b bg-gray-50"><td class="p-3">6. Received compensation for non-IB/brokerage services</td><td class="p-3 text-center font-medium text-red-600">No</td></tr>
+                        <tr class="border-b"><td class="p-3">7. Received compensation for IB/merchant banking/brokerage</td><td class="p-3 text-center font-medium text-red-600">No</td></tr>
+                        <tr class="border-b bg-gray-50"><td class="p-3">8. Subject company was a client in past 12 months</td><td class="p-3 text-center font-medium text-red-600">No</td></tr>
+                        <tr class="border-b"><td class="p-3">9. Served as an officer, director or employee</td><td class="p-3 text-center font-medium text-red-600">No</td></tr>
+                        <tr class="border-b bg-gray-50"><td class="p-3">10. Engaged in market making activity</td><td class="p-3 text-center font-medium text-red-600">No</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
         <section id="overview" data-icon="🏢" data-title="Company Overview">
             <h2 class="text-4xl font-bold text-blue-800 mb-6 text-center">Company Overview</h2>
-            <div class="grid grid-cols-1 lg:grid-cols-5 gap-8">
-                <div class="lg:col-span-3 bg-white p-6 rounded-lg shadow-md">
-                    <h3 class="text-xl font-semibold mb-3 text-blue-700">The Digital-First Challenger</h3>
-                    <p class="text-gray-700 leading-relaxed text-sm">Jio Financial Services (JIOFIN), demerged from Reliance Industries in August 2023, is a holding company engineered to build a dominant, digital-first financial services ecosystem. By integrating with Reliance's vast telecom (450M+ users) and retail (18k+ stores) networks, JFS aims to acquire customers at a fraction of the traditional cost. Its strategy revolves around a "Super App" that bundles lending, payments, insurance, and investments, creating a seamless, data-driven experience for a massive captive audience.</p>
-                    <div class="mt-4 grid grid-cols-2 gap-4 text-center">
-                        <div class="bg-blue-50 p-3 rounded">
-                            <div class="text-2xl font-bold text-blue-800">₹20,700 Cr+</div>
-                            <div class="text-sm text-gray-600">Initial Balance Sheet</div>
-                        </div>
-                        <div class="bg-blue-50 p-3 rounded">
-                            <div class="text-2xl font-bold text-blue-800">450M+</div>
-                            <div class="text-sm text-gray-600">Potential Customers</div>
+            <div class="space-y-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-white p-6 rounded-lg shadow-md h-full flex flex-col">
+                        <h3 class="text-xl font-semibold mb-3 text-blue-700">The Digital-First Challenger</h3>
+                        <p class="text-gray-700 leading-relaxed text-sm flex-grow">Born from the strategic demerger of Reliance Industries in August 2023, Jio Financial Services (JFS) is a holding company engineered to build a dominant, digital-first financial services ecosystem. Armed with a ₹1.2 lakh crore net worth from inception, JFS leverages the unparalleled distribution of Reliance's 450M+ telecom users and 18,000+ retail stores. Its strategy revolves around a "Super App" that seamlessly bundles lending, payments, insurance, and investments, aiming to acquire customers at a fraction of the traditional cost and create a powerful, data-driven financial platform.</p>
+                        <div class="mt-4 grid grid-cols-2 gap-4 text-center">
+                            <div class="bg-blue-50 p-3 rounded"><div class="text-2xl font-bold text-blue-800">₹1.2L Cr</div><div class="text-sm text-gray-600">Initial Net Worth</div></div>
+                            <div class="bg-blue-50 p-3 rounded"><div class="text-2xl font-bold text-blue-800">450M+</div><div class="text-sm text-gray-600">Potential Customers</div></div>
                         </div>
                     </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md h-full flex flex-col">
+                         <h3 class="text-xl font-semibold mb-4 text-blue-700">Key Subsidiaries & JVs</h3>
+                         <ul class="space-y-3 text-sm text-gray-700 flex-grow">
+                            <li class="flex items-start"><span class="text-blue-600 mr-3 text-xl">💳</span><div><strong>Jio Finance Ltd:</strong> The NBFC arm for personal, micro, and supply chain finance.</div></li>
+                            <li class="flex items-start"><span class="text-blue-600 mr-3 text-xl">🏦</span><div><strong>Jio Payments Bank Ltd:</strong> Wholly-owned digital bank offering savings and payment services.</div></li>
+                            <li class="flex items-start"><span class="text-blue-600 mr-3 text-xl">🛡️</span><div><strong>Jio Insurance Broking Ltd:</strong> Distributes policies from 34+ partners. Recently announced a reinsurance JV with Allianz.</div></li>
+                            <li class="flex items-start"><span class="text-blue-600 mr-3 text-xl">📈</span><div><strong>Jio BlackRock:</strong> A 50:50 JV with the world's largest asset manager for mutual funds and wealth management.</div></li>
+                        </ul>
+                    </div>
                 </div>
-                <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-md">
-                    <h3 class="text-xl font-semibold mb-4 text-blue-700">Core Business Verticals</h3>
-                    <ul class="space-y-3">
-                        <li class="flex items-start"><span class="text-blue-600 mr-3 text-xl">💳</span><div><strong>Lending:</strong> Consumer, MSME, and secured loans.</div></li>
-                        <li class="flex items-start"><span class="text-blue-600 mr-3 text-xl">📱</span><div><strong>Payments:</strong> UPI, digital savings accounts via Jio Payments Bank.</div></li>
-                        <li class="flex items-start"><span class="text-blue-600 mr-3 text-xl">🛡️</span><div><strong>Insurance:</strong> Broking via partnerships with 29+ insurers.</div></li>
-                        <li class="flex items-start"><span class="text-blue-600 mr-3 text-xl">📈</span><div><strong>Asset Management:</strong> 50:50 JV with global giant BlackRock.</div></li>
-                    </ul>
+                <div class="bg-white p-4 rounded-lg shadow-md">
+                    <div class="w-full aspect-video max-w-4xl mx-auto">
+                        <iframe class="w-full h-full rounded-lg" src="https://www.youtube.com/embed/mJNojDWvXfA" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+                    </div>
                 </div>
             </div>
         </section>
 
         <section id="leadership" data-icon="👥" data-title="Leadership">
             <h2 class="text-4xl font-bold text-blue-800 mb-4 text-center">Leadership & Governance</h2>
-            <p class="text-gray-600 mb-8 text-center max-w-3xl mx-auto">A blend of seasoned financial industry veterans and strategic oversight from the Reliance group.</p>
+            <p class="text-gray-600 mb-8 text-center max-w-3xl mx-auto">A formidable team blending seasoned financial industry veterans with strategic oversight from the Reliance group.</p>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div class="bg-white p-6 rounded-lg shadow text-center">
+                    <img src="https://placehold.co/150x150/1e40af/ffffff?text=KK" alt="K.V. Kamath" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-white shadow-lg object-cover">
                     <h3 class="text-lg font-bold">K.V. Kamath</h3>
                     <p class="text-sm text-blue-600 font-semibold">Non-Executive Chairman</p>
-                    <p class="text-xs text-gray-500 mt-2">Architect of modern Indian banking, former Chairman of ICICI Bank.</p>
+                    <p class="text-xs text-gray-500 mt-2">Architect of modern Indian banking, former Chairman of ICICI Bank. Brings unparalleled strategic oversight.</p>
                 </div>
                 <div class="bg-white p-6 rounded-lg shadow text-center">
+                    <img src="https://placehold.co/150x150/1e40af/ffffff?text=HS" alt="Hitesh Kumar Sethia" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-white shadow-lg object-cover">
                     <h3 class="text-lg font-bold">Hitesh Kumar Sethia</h3>
                     <p class="text-sm text-blue-600 font-semibold">MD & CEO</p>
-                    <p class="text-xs text-gray-500 mt-2">20+ years in financial services, ex-ICICI executive with deep operational expertise.</p>
+                    <p class="text-xs text-gray-500 mt-2">20+ years in financial services with global experience at ICICI Bank. Drives operational execution.</p>
                 </div>
                  <div class="bg-white p-6 rounded-lg shadow text-center">
+                    <img src="https://placehold.co/150x150/1e40af/ffffff?text=IA" alt="Isha M. Ambani" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-white shadow-lg object-cover">
                     <h3 class="text-lg font-bold">Isha M. Ambani</h3>
                     <p class="text-sm text-blue-600 font-semibold">Non-Exec Director</p>
-                    <p class="text-xs text-gray-500 mt-2">Ensures strategic alignment with the broader Reliance ecosystem.</p>
+                    <p class="text-xs text-gray-500 mt-2">Ensures strategic alignment with the broader Reliance retail and digital ecosystem.</p>
                 </div>
                 <div class="bg-white p-6 rounded-lg shadow text-center">
+                    <img src="https://placehold.co/150x150/1e40af/ffffff?text=RM" alt="Rajiv Mehrishi" class="w-24 h-24 rounded-full mx-auto mb-4 border-4 border-white shadow-lg object-cover">
                     <h3 class="text-lg font-bold">Rajiv Mehrishi</h3>
                     <p class="text-sm text-blue-600 font-semibold">Independent Director</p>
-                    <p class="text-xs text-gray-500 mt-2">Former Finance Secretary, brings immense regulatory and governance experience.</p>
-                </div>
-            </div>
-             <div class="mt-8 bg-white p-6 rounded-lg shadow-md">
-                <h3 class="text-xl font-semibold mb-3 text-center text-blue-700">Shareholding Snapshot</h3>
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                    <div><div class="text-2xl font-bold">47.1%</div><div class="text-sm text-gray-500">Promoter Stake</div></div>
-                    <div><div class="text-2xl font-bold text-green-600">Zero</div><div class="text-sm text-gray-500">Pledged Shares</div></div>
-                    <div><div class="text-2xl font-bold">12.3%</div><div class="text-sm text-gray-500">FII Holding (📈)</div></div>
-                    <div><div class="text-2xl font-bold">14.9%</div><div class="text-sm text-gray-500">DII Holding (📈)</div></div>
+                    <p class="text-xs text-gray-500 mt-2">Former Finance Secretary of India, brings immense regulatory and governance experience.</p>
                 </div>
             </div>
         </section>
 
-        <section id="historical" data-icon="📊" data-title="Historical Performance">
-            <h2 class="text-4xl font-bold text-blue-800 mb-4 text-center">Historical Performance</h2>
-            <p class="text-gray-600 mb-8 text-center max-w-3xl mx-auto">Explosive top-line growth since listing. Note: Profitability is currently skewed by high investment income.</p>
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <div class="chart-container">
-                    <canvas id="historicalPerformanceChart"></canvas>
+        <section id="operations" data-icon="🌍" data-title="Operations & Presence">
+            <h2 class="text-4xl font-bold text-blue-800 mb-4 text-center">Operations & Geographic Presence</h2>
+            <p class="text-gray-600 mb-8 text-center max-w-3xl mx-auto">JFS leverages a "phygital" model, combining a massive physical retail footprint with a rapidly growing digital and agent network.</p>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-semibold mb-3 text-blue-700">Distribution Network</h3>
+                    <ul class="space-y-3 text-gray-700">
+                        <li class="flex items-center"><span class="text-2xl mr-3">🛍️</span><div><strong>18,000+ Reliance Retail Stores:</strong> Unmatched physical touchpoints for customer onboarding and service.</div></li>
+                        <li class="flex items-center"><span class="text-2xl mr-3">📱</span><div><strong>JioFinance App:</strong> The digital core, with over 8 million monthly active users and growing.</div></li>
+                        <li class="flex items-center"><span class="text-2xl mr-3">🤝</span><div><strong>Business Correspondents:</strong> Agent network targeting underserved markets, crucial for last-mile connectivity.</div></li>
+                    </ul>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <h3 class="text-xl font-semibold mb-3 text-center text-blue-700">Agent Network Expansion</h3>
+                    <div class="small-chart-container">
+                        <canvas id="touchpointsChart"></canvas>
+                    </div>
                 </div>
             </div>
         </section>
 
-        <section id="financials" data-icon="➗" data-title="DuPont Analysis">
-            <h2 class="text-4xl font-bold text-blue-800 mb-4 text-center">DuPont Analysis: Deconstructing ROE</h2>
-            <p class="text-gray-600 mb-8 text-center max-w-3xl mx-auto">JFS's current ROE is a story of extremes: exceptionally high margins compensating for very low asset turnover, typical for a holding company in its initial phase.</p>
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <div class="h-[500px]">
-                    <canvas id="dupontChart"></canvas>
+        <section id="industry" data-icon="📈" data-title="Industry Overview">
+            <h2 class="text-4xl font-bold text-blue-800 mb-4 text-center">Industry Overview</h2>
+            <p class="text-gray-600 mb-8 text-center max-w-3xl mx-auto">JFS is positioned at the epicenter of India's fintech revolution, a market with explosive growth potential due to structural under-penetration.</p>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="text-5xl font-extrabold text-blue-600">30%</div>
+                    <div class="text-lg font-semibold mt-2">Fintech Market CAGR</div>
+                    <p class="text-sm text-gray-600 mt-2">India's fintech market is projected to surge from ~$150B to nearly $1 Trillion by 2032.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="text-5xl font-extrabold text-green-600">Market Creator</div>
+                    <div class="text-lg font-semibold mt-2">& Market Taker</div>
+                    <p class="text-sm text-gray-600 mt-2">JFS is both onboarding new-to-credit customers and capturing share from traditional players with its digital offerings.</p>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow-md">
+                    <div class="text-5xl font-extrabold text-amber-600"><4%</div>
+                    <div class="text-lg font-semibold mt-2">Insurance Penetration</div>
+                    <p class="text-sm text-gray-600 mt-2">Massive headroom for growth in insurance, a key focus area for JFS through its broking and reinsurance ventures.</p>
                 </div>
             </div>
         </section>
-        
+
         <section id="competitive" data-icon="⚔️" data-title="Competitive Landscape">
              <h2 class="text-4xl font-bold text-blue-800 mb-4 text-center">Competitive Landscape</h2>
-             <p class="text-gray-600 mb-8 text-center max-w-3xl mx-auto">JFS is a unique entity, but how does it stack up against other financial giants on key metrics?</p>
+             <p class="text-gray-600 mb-8 text-center max-w-3xl mx-auto">JFS is a unique hybrid of a traditional NBFC and a digital fintech platform. Here's how it compares.</p>
             <div class="bg-white p-6 rounded-lg shadow-md">
-                <div class="flex flex-col md:flex-row md:items-center md:space-x-4 mb-4">
-                    <label for="peer-metric-selector" class="font-semibold mb-2 md:mb-0">Select Metric to Compare:</label>
-                    <select id="peer-metric-selector" class="p-2 border rounded-md bg-gray-50">
-                        <option value="p/e" selected>P/E Ratio</option>
-                        <option value="roe">RoE (%)</option>
-                        <option value="net_margin">Net Margin (%)</option>
-                        <option value="d/e">Net D/E Ratio</option>
-                    </select>
+                 <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-left">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="p-3">Competitor</th>
+                                <th class="p-3">Type</th>
+                                <th class="p-3">Key Differentiator</th>
+                                <th class="p-3">JFS's Edge</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b"><td class="p-3 font-semibold">Bajaj Finance</td><td class="p-3">NBFC Conglomerate</td><td class="p-3">Proven profitability, deep lending experience.</td><td class="p-3">Lower cost of acquisition via ecosystem.</td></tr>
+                            <tr class="border-b bg-gray-50"><td class="p-3 font-semibold">Paytm (One97)</td><td class="p-3">Digital Platform</td><td class="p-3">Large existing user base for payments.</td><td class="p-3">Stronger balance sheet, clearer path to lending profitability.</td></tr>
+                            <tr class="border-b"><td class="p-3 font-semibold">PB Fintech</td><td class="p-3">Digital Platform</td><td class="p-3">Market leader in online insurance distribution.</td><td class="p-3">Full-stack financial services vs. a monoline focus.</td></tr>
+                            <tr class="border-b bg-gray-50"><td class="p-3 font-semibold">Shriram Finance</td><td class="p-3">Traditional NBFC</td><td class="p-3">Deep expertise in commercial vehicle finance.</td><td class="p-3">Broader consumer focus and digital-native approach.</td></tr>
+                        </tbody>
+                    </table>
                 </div>
-                <div class="h-[400px] md:h-[450px]">
-                    <canvas id="peerComparisonChart"></canvas>
+            </div>
+        </section>
+
+        <section id="financials" data-icon="📊" data-title="Financial Performance">
+            <h2 class="text-4xl font-bold text-blue-800 mb-4 text-center">Financial Performance</h2>
+            <p class="text-gray-600 mb-8 text-center max-w-3xl mx-auto">Analyzing JFS's financial trajectory, with options to view Year-on-Year and Quarter-on-Quarter performance.</p>
+            <div class="bg-white p-6 rounded-lg shadow-md">
+                <div class="flex justify-center space-x-2 md:space-x-4 mb-6" id="performance-view-selector">
+                    <button data-view="yoy" class="quarter-btn active">Year-on-Year</button>
+                    <button data-view="qoq" class="quarter-btn">Quarter-on-Quarter</button>
+                </div>
+                <div id="yoy-performance" class="performance-content">
+                    <div class="chart-container">
+                        <canvas id="historicalPerformanceChart"></canvas>
+                    </div>
+                </div>
+                <div id="qoq-performance" class="performance-content hidden">
+                     <div class="overflow-x-auto">
+                        <table class="w-full text-sm text-left">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="p-3">Metric</th>
+                                    <th class="p-3 text-right">Q1 FY25</th>
+                                    <th class="p-3 text-right">Q4 FY25</th>
+                                    <th class="p-3 text-right">Q1 FY26</th>
+                                    <th class="p-3 text-right text-green-600">QoQ Growth</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="border-b"><td class="p-3 font-semibold">Total Income (₹ Cr)</td><td class="p-3 text-right">419</td><td class="p-3 text-right">518</td><td class="p-3 text-right">619</td><td class="p-3 text-right text-green-600">+19.5%</td></tr>
+                                <tr class="border-b bg-gray-50"><td class="p-3 font-semibold">Net Profit (₹ Cr)</td><td class="p-3 text-right">312</td><td class="p-3 text-right">316</td><td class="p-3 text-right">325</td><td class="p-3 text-right text-green-600">+2.7%</td></tr>
+                                <tr class="border-b"><td class="p-3 font-semibold">NII (₹ Cr)</td><td class="p-3 text-right">174</td><td class="p-3 text-right">215</td><td class="p-3 text-right">264</td><td class="p-3 text-right text-green-600">+22.8%</td></tr>
+                            </tbody>
+                        </table>
+                        <p class="text-xs text-gray-500 mt-2">Note: Q1 FY25 data is estimated based on YoY growth figures for comparison.</p>
+                    </div>
                 </div>
             </div>
         </section>
@@ -277,8 +365,8 @@
                             <input id="sales-growth-slider" type="range" min="20" max="50" value="35" step="1" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
                         </div>
                         <div>
-                            <label for="margin-slider" class="block font-semibold mb-1">Projected PBT Margin: <span id="margin-value" class="font-bold text-blue-600">40.0%</span></label>
-                            <input id="margin-slider" type="range" min="25" max="50" value="40" step="0.5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
+                            <label for="margin-slider" class="block font-semibold mb-1">Projected Net Margin: <span id="margin-value" class="font-bold text-blue-600">50.0%</span></label>
+                            <input id="margin-slider" type="range" min="30" max="65" value="50" step="0.5" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer">
                         </div>
                         <div>
                             <label for="pe-multiple-slider" class="block font-semibold mb-1">Target P/E Multiple: <span id="pe-multiple-value" class="font-bold text-blue-600">60x</span></label>
@@ -286,10 +374,33 @@
                         </div>
                         <div class="bg-gray-100 p-4 rounded-lg text-center">
                             <div id="custom-valuation-title" class="text-gray-600">Your Custom Projected Price (FY27)</div>
-                            <div id="custom-valuation-output" class="text-3xl font-bold text-blue-800 mt-1">₹654</div>
+                            <div id="custom-valuation-output" class="text-3xl font-bold text-blue-800 mt-1">₹577</div>
                         </div>
                     </div>
                 </div>
+                <hr class="my-6">
+                <h3 class="text-xl font-semibold mb-3 text-center text-blue-700">Valuation Multiple Analysis</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm text-center">
+                        <thead class="bg-gray-100"><tr><th class="p-2">Metric</th><th class="p-2">Current</th><th class="p-2">Industry Avg.</th><th class="p-2">Premium/Discount</th></tr></thead>
+                        <tbody>
+                            <tr class="border-b"><td>P/E Ratio</td><td>~132x</td><td>25-30x</td><td class="text-red-600 font-semibold">300%+ Premium</td></tr>
+                            <tr class="border-b bg-gray-50"><td>P/B Ratio</td><td>~1.7x</td><td>2.5-3.0x</td><td class="text-green-600 font-semibold">30% Discount</td></tr>
+                            <tr class="border-b"><td>EV/Revenue</td><td>~104x</td><td>3-5x</td><td class="text-red-600 font-semibold">2000%+ Premium</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <section id="technicals" data-icon="📈" data-title="Technical Analysis">
+            <h2 class="text-4xl font-bold text-blue-800 mb-4 text-center">Technical Analysis</h2>
+            <p class="text-gray-600 mb-8 text-center max-w-3xl mx-auto">Price trends for JIOFIN (NSE), highlighting key support and resistance levels on the weekly chart.</p>
+            <div class="grid grid-cols-1 gap-8">
+                <div class="bg-white p-2 rounded-lg shadow-md w-full">
+                    <h3 class="text-xl font-semibold my-2 text-center">Weekly Chart - Medium Term Trend</h3>
+                    <img src="https://www.tradingview.com/x/svvAHRbt/" alt="JIOFIN Weekly Chart" class="w-full h-auto rounded-lg" onerror="this.onerror=null;this.src='https://placehold.co/1200x600/cccccc/333333?text=Chart+Not+Available';">
+                </div>                
             </div>
         </section>
 
@@ -300,19 +411,21 @@
                 <div class="bg-white p-6 rounded-lg shadow-md">
                     <h3 class="text-2xl font-semibold text-green-600 mb-4">Investment Thesis (The Bull Case)</h3>
                     <ul class="space-y-3">
-                        <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🌐</span><div><strong>Unmatched Ecosystem:</strong> Access to 450M+ users and retail network creates an unparalleled, low-cost distribution moat.</div></li>
+                        <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🌐</span><div><strong>Unmatched Ecosystem:</strong> Access to 450M+ users and a vast retail network creates an unparalleled, low-cost distribution moat.</div></li>
                         <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🚀</span><div><strong>Digital-First Disruption:</strong> Built as a tech company first, positioned to capture the massive shift to digital finance in India.</div></li>
-                        <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🤝</span><div><strong>Partnership Power:</strong> JV with BlackRock lends immediate global credibility and expertise in asset management.</div></li>
-                        <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">💰</span><div><strong>Fortress Balance Sheet:</strong> Launched with a massive capital base and a debt-free structure, providing immense firepower for growth.</div></li>
+                        <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🤝</span><div><strong>Partnership Power:</strong> JVs with BlackRock and Allianz lend immediate global credibility and expertise in asset management and insurance.</div></li>
+                        <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">💰</span><div><strong>Fortress Balance Sheet:</strong> Launched with a massive capital base (₹1.2L Cr net worth) and a debt-free structure, providing immense firepower for growth.</div></li>
+                         <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">💡</span><div><strong>Technology Focus:</strong> Emphasis on "Agentic AI" for personalized products and robust risk management could be a key differentiator.</div></li>
                     </ul>
                 </div>
                 <div class="bg-white p-6 rounded-lg shadow-md">
                     <h3 class="text-2xl font-semibold text-red-600 mb-4">Antithesis (The Bear Case)</h3>
                     <ul class="space-y-3">
-                        <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">⚖️</span><div><strong>Extreme Valuation:</strong> Current P/E of ~130x prices in years of flawless execution, leaving no margin for error.</div></li>
-                        <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">⚙️</span><div><strong>Execution Risk:</strong> Scaling multiple complex financial businesses simultaneously is a monumental task with no historical track record.</div></li>
-                        <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">📉</span><div><strong>Profitability Puzzle:</strong> True profitability from core lending operations is unproven and could be much lower than current reported margins.</div></li>
-                        <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🏛️</span><div><strong>Regulatory Scrutiny:</strong> As a large, systemically important entity, JFS will face intense and evolving regulatory oversight from the RBI.</div></li>
+                        <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">⚖️</span><div><strong>Extreme Valuation:</strong> Current P/E of ~132x is pricing in years of flawless execution, leaving no margin for error or disappointment.</div></li>
+                        <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">⚙️</span><div><strong>Execution Risk:</strong> Scaling multiple complex financial businesses simultaneously is a monumental task with no historical track record of integrated profitability.</div></li>
+                        <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">📉</span><div><strong>Profitability Puzzle:</strong> True profitability from core lending operations is unproven. Current high margins are skewed by treasury income and are not sustainable as operations scale.</div></li>
+                        <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">🏛️</span><div><strong>Regulatory Scrutiny:</strong> As a large, systemically important entity, JFS will face intense and evolving regulatory oversight from the RBI, which could cap growth or increase compliance costs.</div></li>
+                        <li class="flex items-start p-2 rounded-md"><span class="text-2xl mr-3">⚔️</span><div><strong>Intense Competition:</strong> Faces profitable, experienced giants like Bajaj Finance and agile fintechs like Paytm in every vertical.</div></li>
                     </ul>
                 </div>
             </div>
@@ -321,17 +434,27 @@
         <section id="conclusion" data-icon="🏁" data-title="Conclusion">
              <h2 class="text-4xl font-bold text-blue-800 mb-4 text-center">Conclusion & Analyst View</h2>
              <p class="text-gray-600 mb-8 text-center max-w-3xl mx-auto">Synthesizing the research into a final verdict, acknowledging the high-risk, high-reward nature of the opportunity.</p>
-             <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-blue-500">
-                    <h3 class="text-xl font-semibold text-blue-800 mb-2">Analysis 1: High Conviction with Caution</h3>
-                    <p class="text-sm text-gray-700">Views JFS as a compelling, once-in-a-decade opportunity to invest in a platform poised for massive scale. The combination of ecosystem, capital, and brand is unmatched. Suitable for aggressive, long-term investors.</p>
-                    <div class="mt-4 text-center text-3xl font-bold text-blue-800">Conviction: 7.7 / 10</div>
+             <div class="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+                <div class="bg-white p-6 rounded-lg shadow-md border-b-4 border-red-500">
+                    <h3 class="text-xl font-semibold text-red-700 mb-2">Bear Case</h3>
+                    <p class="text-sm text-gray-600">Execution falters, competition intensifies. P/E contracts to peer levels.</p>
+                    <div class="mt-2 text-3xl font-bold text-red-700">Target: ₹280</div>
                 </div>
-                 <div class="bg-white p-6 rounded-lg shadow-md border-l-4 border-amber-500">
-                    <h3 class="text-xl font-semibold text-amber-800 mb-2">Analysis 2: Moderate / Speculative</h3>
-                    <p class="text-sm text-gray-700">Classifies JFS as a "lottery-ticket" stock. The potential is enormous, but the valuation is astronomical and the path to profitability is uncertain. Advises waiting for tangible proof of execution before committing significant capital.</p>
-                     <div class="mt-4 text-center text-3xl font-bold text-amber-800">Conviction: Speculative</div>
+                <div class="bg-white p-6 rounded-lg shadow-md border-b-4 border-blue-500">
+                    <h3 class="text-xl font-semibold text-blue-800 mb-2">Base Case (Most Probable)</h3>
+                    <p class="text-sm text-gray-600">Successful product launches and market share gains. Valuation remains at a premium.</p>
+                    <div class="mt-2 text-3xl font-bold text-blue-800">Target: ₹400</div>
                 </div>
+                 <div class="bg-white p-6 rounded-lg shadow-md border-b-4 border-green-500">
+                    <h3 class="text-xl font-semibold text-green-700 mb-2">Bull Case</h3>
+                    <p class="text-sm text-gray-600">Dominant market leadership achieved through flawless execution and ecosystem monetization.</p>
+                    <div class="mt-2 text-3xl font-bold text-green-700">Target: ₹550</div>
+                </div>
+            </div>
+            <div class="mt-8 bg-gray-100 p-4 rounded-lg text-center">
+                <h3 class="text-xl font-bold text-gray-800">Final Recommendation: HOLD</h3>
+                <p class="text-gray-700 mt-1">A high-risk, high-reward opportunity. The unparalleled ecosystem provides a strong foundation, but the stretched valuation demands near-perfect execution. Recommend gradual accumulation on weakness for investors with a high risk tolerance and a long-term horizon.</p>
+                 <p class="font-bold text-2xl text-blue-800 mt-2">12-18 Month Target Price: ₹400</p>
             </div>
         </section>
     </div>
@@ -359,11 +482,9 @@
         const scrollableViewContainer = document.getElementById('scrollable-view-container');
         const headerSubtitle = document.getElementById('header-subtitle');
 
-        /**
-         * Populates the dashboard with cards.
-         */
         function createDashboardCards() {
             const sections = sectionStorage.querySelectorAll('section');
+            dashboardGrid.innerHTML = ''; // Clear existing cards
             sections.forEach(section => {
                 const card = document.createElement('div');
                 card.className = 'dashboard-card';
@@ -375,9 +496,6 @@
             });
         }
         
-        /**
-         * Toggles between 'cards' and 'scroll' views.
-         */
         function toggleView() {
             activeCharts.forEach(chart => chart.destroy());
             activeCharts = [];
@@ -391,6 +509,7 @@
                 
                 if (!isScrollContentInitialized) {
                     const sections = sectionStorage.querySelectorAll('section');
+                    scrollableViewContainer.innerHTML = ''; // Clear before populating
                     sections.forEach(section => {
                         scrollableViewContainer.appendChild(section.cloneNode(true));
                     });
@@ -408,27 +527,67 @@
             }
         }
 
-        /**
-         * Initializes all interactive elements within a given container.
-         */
         function initializeAllScripts(container) {
-            const historicalCanvas = container.querySelector('#historicalPerformanceChart');
-            if(historicalCanvas) {
-                const data = { labels: ['FY23', 'FY24', 'FY25'], datasets: [ { label: 'Revenue (₹ Cr)', data: [235, 1842, 2079], backgroundColor: '#2563eb', yAxisID: 'y' }, { label: 'Net Income (₹ Cr)', data: [313, 1605, 1613], backgroundColor: '#f59e0b', yAxisID: 'y' }, { type: 'line', label: 'Net Margin (%)', data: [133.2, 87.1, 77.6], borderColor: '#ef4444', backgroundColor: '#ef4444', yAxisID: 'y1', tension: 0.2 } ] };
-                const chart = new Chart(historicalCanvas.getContext('2d'), { type: 'bar', data, options: { responsive: true, maintainAspectRatio: false, scales: { y: { display: true, position: 'left', title: { display: true, text: 'Amount (₹ Cr)' } }, y1: { display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Net Margin (%)' } } }, plugins: { tooltip: { mode: 'index', intersect: false } } } });
+            // Destroy existing charts in the container before creating new ones
+            activeCharts.forEach(chart => chart.destroy());
+            activeCharts = [];
+
+            // Chart for Touchpoints
+            const touchpointsCanvas = container.querySelector('#touchpointsChart');
+            if (touchpointsCanvas) {
+                const chart = new Chart(touchpointsCanvas.getContext('2d'), {
+                    type: 'bar',
+                    data: {
+                        labels: ['Start of FY25', 'End of FY25'],
+                        datasets: [{
+                            label: 'Agent Touchpoints',
+                            data: [20000, 50000],
+                            backgroundColor: ['#3b82f6', '#16a34a'],
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true, title: { display: true, text: 'Number of Agents' } } }
+                    }
+                });
                 activeCharts.push(chart);
             }
 
-            const dupontCanvas = container.querySelector('#dupontChart');
-            if (dupontCanvas) {
-                 const data = { labels: ['FY24', 'FY25'], datasets: [ { label: 'Return on Equity (%)', data: [1.3, 1.3], borderColor: '#1d4ed8', backgroundColor: '#1d4ed8', tension: 0.1 }, { label: 'Net Profit Margin (%)', data: [87.1, 77.6], borderColor: '#16a34a', backgroundColor: '#16a34a', tension: 0.1 }, { label: 'Asset Turnover (x)', data: [0.015, 0.015], borderColor: '#f97316', backgroundColor: '#f97316', tension: 0.1 }, { label: 'Equity Multiplier (x)', data: [1.0, 1.08], borderColor: '#dc2626', backgroundColor: '#dc2626', tension: 0.1 } ] };
-                const chart = new Chart(dupontCanvas.getContext('2d'), { type: 'line', data, options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { y: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Value' } } }, plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.parsed.y.toFixed(2)}${c.dataset.label.includes('%') ? '%' : 'x'}` } } } } });
+            // Chart for Historical Performance
+            const historicalCanvas = container.querySelector('#historicalPerformanceChart');
+            if(historicalCanvas) {
+                const data = { labels: ['FY24', 'FY25', 'FY26 (E)'], datasets: [ { label: 'Revenue (₹ Cr)', data: [1855, 2079, 2599], backgroundColor: '#2563eb', yAxisID: 'y' }, { label: 'Net Income (₹ Cr)', data: [1605, 1613, 2016], backgroundColor: '#f59e0b', yAxisID: 'y' } ] };
+                const chart = new Chart(historicalCanvas.getContext('2d'), { type: 'bar', data, options: { responsive: true, maintainAspectRatio: false, scales: { y: { display: true, position: 'left', title: { display: true, text: 'Amount (₹ Cr)' } } }, plugins: { tooltip: { mode: 'index', intersect: false } } } });
                 activeCharts.push(chart);
             }
+            
+            // Performance View Toggle
+            const performanceSelector = container.querySelector('#performance-view-selector');
+            if(performanceSelector) {
+                const yoyContent = container.querySelector('#yoy-performance');
+                const qoqContent = container.querySelector('#qoq-performance');
+                performanceSelector.addEventListener('click', (e) => {
+                    if (e.target.tagName === 'BUTTON') {
+                        performanceSelector.querySelectorAll('button').forEach(btn => btn.classList.remove('active'));
+                        e.target.classList.add('active');
+                        const view = e.target.dataset.view;
+                        if (view === 'yoy') {
+                            yoyContent.classList.remove('hidden');
+                            qoqContent.classList.add('hidden');
+                        } else {
+                            yoyContent.classList.add('hidden');
+                            qoqContent.classList.remove('hidden');
+                        }
+                    }
+                });
+            }
+
 
             const peerComparisonCanvas = container.querySelector('#peerComparisonChart');
             if (peerComparisonCanvas) {
-                const peerData = { labels: ['JIOFIN', 'Bajaj Finance', 'Shriram Fin', 'M&M Fin'], 'p/e': { data: [129, 34, 14, 16], label: 'P/E Ratio' }, 'roe': { data: [1.3, 18.1, 13.4, 10.9], label: 'RoE (%)' }, 'net_margin': { data: [77.6, 24.1, 22.9, 15.2], label: 'Net Margin (%)' }, 'd/e': { data: [0.0, 3.8, 4.2, 3.0], label: 'Net D/E Ratio' } };
+                const peerData = { labels: ['JIOFIN', 'Bajaj Finance', 'Shriram Fin', 'PB Fintech'], 'p/e': { data: [132, 31, 12, 213], label: 'P/E Ratio' }, 'roe': { data: [1.2, 17.4, 17.0, 5.0], label: 'RoE (%)' }, 'net_margin': { data: [78.9, 23.9, 22.9, 5.0], label: 'Net Margin (%)' }, 'd/e': { data: [0.0, 1.8, 4.2, 0.1], label: 'Net D/E Ratio' } };
                 const chart = new Chart(peerComparisonCanvas.getContext('2d'), { type: 'bar', data: { labels: peerData.labels, datasets: [{ label: peerData['p/e'].label, data: peerData['p/e'].data, backgroundColor: ['#1d4ed8', '#16a34a', '#f97316', '#9333ea'] }] }, options: { responsive: true, maintainAspectRatio: false, indexAxis: 'y', scales: { x: { beginAtZero: true } }, plugins: { legend: { display: false } } } });
                 activeCharts.push(chart);
                 
@@ -445,20 +604,18 @@
             
             const valuationCanvas = container.querySelector('#valuationChart');
             if (valuationCanvas) {
-                const basePriceCurrent = 329.50;
                 const valuationChart = new Chart(valuationCanvas.getContext('2d'), { type: 'bar', data: { labels: ['Bear', 'Base', 'Bull', 'Your Scenario'], datasets: [{ label: 'Projected Share Price', data: [], backgroundColor: ['#ef4444', '#6b7280', '#22c55e', '#3b82f6'] }] }, 
                     options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: false, title: { display: true, text: 'Projected Price (₹)' } } }, plugins: { legend: { display: false }, tooltip: { callbacks: { label: (c) => `Price: ₹${c.parsed.y.toFixed(0)}` } } } } 
                 });
                 activeCharts.push(valuationChart);
-                const assumptions = { bear: { growth: 25, margin: 30, pe: 40 }, base: { growth: 35, margin: 40, pe: 60 }, bull: { growth: 50, margin: 45, pe: 75 } };
+                const assumptions = { bear: { growth: 15, margin: 40, pe: 25 }, base: { growth: 25, margin: 50, pe: 40 }, bull: { growth: 35, margin: 60, pe: 60 } };
                 const salesSlider = container.querySelector('#sales-growth-slider'); const marginSlider = container.querySelector('#margin-slider'); const peSlider = container.querySelector('#pe-multiple-slider'); const salesValue = container.querySelector('#sales-growth-value'); const marginValue = container.querySelector('#margin-value'); const peValue = container.querySelector('#pe-multiple-value'); const customValuationOutput = container.querySelector('#custom-valuation-output'); const customValuationTitle = container.querySelector('#custom-valuation-title'); const yearSelector = container.querySelector('#year-selector');
                 
-                function calculatePrice(year, salesCAGR, pbtMargin, peMultiple) { 
+                function calculatePrice(year, salesCAGR, netMargin, peMultiple) { 
                     const y = parseInt(year) - 25;
                     const revenue = 2079 * Math.pow(1 + (salesCAGR / 100), y);
-                    const pbt = revenue * (pbtMargin / 100);
-                    const pat = pbt * (1 - 0.25); // Assume 25% tax
-                    return (pat / 635.3) * peMultiple; // 635.3 Cr shares outstanding
+                    const pat = revenue * (netMargin / 100);
+                    return (pat / 635.3) * peMultiple;
                 }
                 
                 function updateValuationChart(year) {
@@ -483,7 +640,7 @@
 
                 yearSelector.addEventListener('click', (e) => { if (e.target.tagName === 'BUTTON') { yearSelector.querySelectorAll('button').forEach(btn => btn.classList.remove('active')); e.target.classList.add('active'); updateValuationChart(e.target.dataset.year); } });
                 [salesSlider, marginSlider, peSlider].forEach(slider => { slider.addEventListener('input', () => { const activeYear = yearSelector.querySelector('.active').dataset.year; updateValuationChart(activeYear); }); });
-                updateValuationChart('27');
+                updateValuationChart('27'); // Default to FY27
             }
         }
 
