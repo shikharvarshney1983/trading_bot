@@ -142,7 +142,7 @@ def run_screener_process(frequency='weekly'):
             data.ta.ema(length=21, append=True)
             data.ta.ema(length=40, append=True)
             
-            data['Volume_MA10'] = data['Volume'].rolling(window=10, min_periods=1).mean()
+            data['Volume_MA10'] = data['Volume'].rolling(window=10, min_periods=1).mean().squeeze()
             
             stock_ret_series = data['Close'].pct_change().rolling(rpi_period).sum()
             

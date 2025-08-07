@@ -72,7 +72,7 @@ def get_data_with_indicators(tickers: list, benchmark_ticker: str, interval: str
             stock_data.ta.rsi(length=14, append=True)
             stock_data.ta.adx(length=14, append=True)
             stock_data.ta.donchian(lower_length=20, upper_length=20, append=True)
-            stock_data['Volume_MA10'] = stock_data['Volume'].rolling(window=10).mean()
+            stock_data['Volume_MA10'] = stock_data['Volume'].rolling(window=10, min_periods=1).mean().squeeze()
 
             # --- Robust Relative Strength (RS) Calculation ---
             roll_period = 50 if interval == '1wk' else 21

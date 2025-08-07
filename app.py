@@ -103,6 +103,7 @@ def send_telegram_message(chat_id, message):
     payload = {'chat_id': chat_id, 'text': message, 'parse_mode': 'Markdown'}
     
     try:
+        logging.info(f"Sending Telegram message to {chat_id}: {message}")
         response = requests.post(url, json=payload)
         if response.status_code != 200:
             logging.warning(f"Error sending Telegram message: {response.text}")

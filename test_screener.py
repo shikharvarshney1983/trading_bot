@@ -92,7 +92,7 @@ def calculate_indicators(data):
     data.ta.ema(length=21, append=True)
     data.ta.ema(length=40, append=True)
     data.ta.atr(length=14, append=True)
-    data['Volume_MA10'] = data['Volume'].rolling(window=10).mean()
+    data['Volume_MA10'] = data['Volume'].rolling(window=10, min_periods=1).mean().squeeze()
     return data
 
 def find_pivots(data, lookback=10):
