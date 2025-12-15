@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PeriScope - DevSecOps Support Dashboard</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Configure Tailwind for a corporate theme -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'bnpp-primary': '#0072CE', // Corporate Blue
+                        'bnpp-secondary': '#F0F0F0', // Light Gray
+                        'bnpp-dark': '#1F2937', // Dark text/header
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar styling for the handover section */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #A0AEC0; /* gray-400 */
+            border-radius: 4px;
+        }
+        /* Style for tables in detail view */
+        .detail-table th {
+            @apply px-3 py-2 text-left font-bold text-gray-500 uppercase tracking-wider;
+        }
+        .detail-table td {
+            @apply px-3 py-2 whitespace-nowrap text-gray-700;
+        }
+    </style>
+</head>
+<body class="bg-bnpp-secondary min-h-screen font-sans">
+
+    <!-- Header / Banner -->
+    <header class="bg-bnpp-primary text-white shadow-lg p-4 sticky top-0 z-10">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <!-- App Name (Left) -->
+            <div class="text-3xl font-extrabold tracking-tight">
+                Peri<span class="font-normal">Scope</span>
+            </div>
+            
+            <!-- Common Links (Right) -->
+            <nav class="space-x-4 flex items-center">
+                <a href="#" class="text-sm font-medium hover:text-blue-200 transition duration-150 p-2 rounded-lg hover:bg-bnpp-dark/20" onclick="alertPlaceholder('GoTo Link')">
+                    GoTo
+                </a>
+                <a href="#" class="text-sm font-medium hover:text-blue-200 transition duration-150 p-2 rounded-lg hover:bg-bnpp-dark/20" onclick="alertPlaceholder('DevOps Chatbot')">
+                    DevOps Chatbot
+                </a>
+                <a href="#" class="text-sm font-medium bg-white text-bnpp-primary py-1.5 px-4 rounded-full shadow-md hover:bg-gray-100 transition duration-150" onclick="alertPlaceholder('DevOps Portal')">
+                    DevOps Portal
+                </a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Main Content Grid (1:3:2 Layout on desktop, stacked on mobile) -->
+    <main class="max-w-7xl mx-auto p-4 md:p-6">
+        <div class="grid grid-cols-1 lg:grid-cols-6 gap-6">
+
+            <!-- 1. Left Section: Applications (1/6 width) - STATIC -->
+            <section class="lg:col-span-1">
+                <div class="bg-white p-4 rounded-xl shadow-lg h-full">
+                    <h2 class="text-lg font-semibold text-bnpp-dark mb-3 border-b pb-2">Applications</h2>
+                    <ul class="space-y-2 text-sm">
+                        <!-- Application List -->
+                        <li class="group">
+                            <a href="#" class="block p-2 rounded-lg text-gray-700 hover:bg-bnpp-primary hover:text-white transition duration-150 font-medium" onclick="alertPlaceholder('Jenkins Detail Page')">Jenkins</a>
+                        </li>
+                        <li class="group">
+                            <a href="#" class="block p-2 rounded-lg text-gray-700 hover:bg-bnpp-primary hover:text-white transition duration-150 font-medium" onclick="alertPlaceholder('Artifactory Detail Page')">Artifactory</a>
+                        </li>
+                        <li class="group">
+                            <a href="#" class="block p-2 rounded-lg text-gray-700 hover:bg-bnpp-primary hover:text-white transition duration-150 font-medium" onclick="alertPlaceholder('Bitbucket Detail Page')">Bitbucket</a>
+                        </li>
+                        <li class="group">
+                            <a href="#" class="block p-2 rounded-lg text-gray-700 hover:bg-bnpp-primary hover:text-white transition duration-150 font-medium" onclick="alertPlaceholder('TeamCity Detail Page')">TeamCity</a>
+                        </li>
+                        <li class="group">
+                            <a href="#" class="block p-2 rounded-lg text-gray-700 hover:bg-bnpp-primary hover:text-white transition duration-150 font-medium" onclick="alertPlaceholder('SonarQube Detail Page')">SonarQube</a>
+                        </li>
+                        <li class="group">
+                            <a href="#" class="block p-2 rounded-lg text-gray-700 hover:bg-bnpp-primary hover:text-white transition duration-150 font-medium" onclick="alertPlaceholder('Fortify Detail Page')">Fortify</a>
+                        </li>
+                        <li class="group">
+                            <a href="#" class="block p-2 rounded-lg text-gray-700 hover:bg-bnpp-primary hover:text-white transition duration-150 font-medium" onclick="alertPlaceholder('NexusIQ Detail Page')">NexusIQ</a>
+                        </li>
+                        <li class="group">
+                            <a href="#" class="block p-2 rounded-lg text-gray-700 hover:bg-bnpp-primary hover:text-white transition duration-150 font-medium" onclick="alertPlaceholder('ArgoCD Detail Page')">ArgoCD</a>
+                        </li>
+                        <li class="group">
+                            <a href="#" class="block p-2 rounded-lg text-gray-700 hover:bg-bnpp-primary hover:text-white transition duration-150 font-medium" onclick="alertPlaceholder('ArgoWorkflow Detail Page')">ArgoWorkflow</a>
+                        </li>
+                        <li class="group">
+                            <a href="#" class="block p-2 rounded-lg text-gray-700 hover:bg-bnpp-primary hover:text-white transition duration-150 font-medium" onclick="alertPlaceholder('Performance Center Detail Page')">Performance Center</a>
+                        </li>
+                        <li class="group">
+                            <a href="#" class="block p-2 rounded-lg text-gray-700 hover:bg-bnpp-primary hover:text-white transition duration-150 font-medium" onclick="alertPlaceholder('HP ALM Detail Page')">HP ALM</a>
+                        </li>
+                        <li class="group">
+                            <a href="#" class="block p-2 rounded-lg text-gray-700 hover:bg-bnpp-primary hover:text-white transition duration-150 font-medium" onclick="alertPlaceholder('UFT Detail Page')">UFT</a>
+                        </li>
+                    </ul>
+                </div>
+            </section>
+
+            <!-- 2. Middle Section: Dynamic Views Container (3/6 width) -->
+            <section class="lg:col-span-3">
+                
+                <!-- 2A. DASHBOARD VIEW (Initial State) -->
+                <div id="dashboard-view" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    <!-- Card 1: ServiceNow Metrics -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-bnpp-primary transform hover:scale-[1.01] transition duration-300">
+                        <h3 class="text-xl font-bold text-bnpp-dark mb-4 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 text-bnpp-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            ServiceNow Overview
+                        </h3>
+                        <ul class="space-y-3">
+                            <li class="flex justify-between items-center text-gray-700 text-base">
+                                <span>Unassigned Incidents (P1/P2)</span>
+                                <span class="font-bold text-lg bg-red-100 text-red-600 px-3 py-1 rounded-full">3</span>
+                            </li>
+                            <li class="flex justify-between items-center text-gray-700 text-base">
+                                <span>Unanswered RITMs (New)</span>
+                                <span class="font-bold text-lg bg-yellow-100 text-yellow-600 px-3 py-1 rounded-full">7</span>
+                            </li>
+                            <li class="flex justify-between items-center text-gray-700 text-base">
+                                <span>Open Changes (Pending Approval)</span>
+                                <span class="font-bold text-lg bg-blue-100 text-blue-600 px-3 py-1 rounded-full">12</span>
+                            </li>
+                            <li class="flex justify-between items-center text-gray-700 text-base">
+                                <span>RITMs On Hold (> 5 Days)</span>
+                                <span class="font-bold text-lg bg-red-100 text-red-600 px-3 py-1 rounded-full">1</span>
+                            </li>
+                        </ul>
+                        <!-- Updated link to show the detail view -->
+                        <a href="#" class="mt-4 block text-sm text-bnpp-primary hover:underline font-medium" onclick="showView('servicenow-details-view')">View Details →</a>
+                    </div>
+
+                    <!-- Card 2: Monitoring Alerts -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-red-500 transform hover:scale-[1.01] transition duration-300">
+                        <h3 class="text-xl font-bold text-bnpp-dark mb-4 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.332 16c-.77 1.333.192 3 1.732 3z" />
+                            </svg>
+                            Monitoring Alerts
+                        </h3>
+                        <ul class="space-y-3">
+                            <li class="flex justify-between items-center text-gray-700 text-base">
+                                <span>Dynatrace Critical Alerts</span>
+                                <span class="font-bold text-lg bg-red-100 text-red-600 px-3 py-1 rounded-full">5</span>
+                            </li>
+                            <li class="flex justify-between items-center text-gray-700 text-base">
+                                <span>OpenSearch Error Logs (High)</span>
+                                <span class="font-bold text-lg bg-yellow-100 text-yellow-600 px-3 py-1 rounded-full">14</span>
+                            </li>
+                            <li class="flex justify-between items-center text-gray-700 text-base">
+                                <span>Pulsing Service Checks</span>
+                                <span class="font-bold text-lg bg-green-100 text-green-600 px-3 py-1 rounded-full">0</span>
+                            </li>
+                            <li class="flex justify-between items-center text-gray-700 text-base">
+                                <span>Total Alerts Cleared (Last Hr)</span>
+                                <span class="font-bold text-lg bg-gray-100 text-gray-600 px-3 py-1 rounded-full">28</span>
+                            </li>
+                        </ul>
+                        <a href="#" class="mt-4 block text-sm text-bnpp-primary hover:underline font-medium" onclick="alertPlaceholder('Monitoring Dashboards')">Go to Dashboards →</a>
+                    </div>
+
+                    <!-- Card 3: SOD Checks -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-green-500 cursor-pointer transform hover:scale-[1.01] transition duration-300" onclick="alertPlaceholder('Showing Latest SOD Report: Access Granted')">
+                        <h3 class="text-xl font-bold text-bnpp-dark mb-4 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                            </svg>
+                            SOD Checks Status
+                        </h3>
+                        <p class="text-4xl font-extrabold text-green-600 mb-2">PASS</p>
+                        <p class="text-sm text-gray-600">Latest check completed 2 hours ago. No violations detected.</p>
+                        <span class="mt-4 block text-sm text-bnpp-primary hover:underline font-medium">Click to view report →</span>
+                    </div>
+
+                    <!-- Card 4: PowerBI Report Link -->
+                    <div class="bg-white p-6 rounded-xl shadow-lg border-t-4 border-purple-500 cursor-pointer transform hover:scale-[1.01] transition duration-300" onclick="alertPlaceholder('Opening PowerBI Report Dashboard')">
+                        <h3 class="text-xl font-bold text-bnpp-dark mb-4 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
+                            </svg>
+                            Performance & Usage Report
+                        </h3>
+                        <p class="text-sm text-gray-600 mb-2">Access the full, interactive PowerBI report for usage statistics, pipeline duration, and service health trends.</p>
+                        <span class="text-sm text-bnpp-primary hover:underline font-medium">Click to open PowerBI →</span>
+                        <div class="mt-2 text-xs text-gray-400">Data refreshed every 15 minutes.</div>
+                    </div>
+
+                </div>
+
+                <!-- 2B. SERVICENOW DETAILS VIEW (Hidden by default) -->
+                <div id="servicenow-details-view" class="hidden">
+                    
+                    <div class="mb-4 flex items-center justify-between border-b pb-3">
+                        <h2 class="text-2xl font-bold text-bnpp-dark">ServiceNow Details</h2>
+                        <!-- Back Button -->
+                        <button onclick="showView('dashboard-view')" class="flex items-center text-sm font-medium text-bnpp-primary hover:text-white transition duration-150 p-2 rounded-lg bg-white hover:bg-bnpp-primary border border-bnpp-primary hover:border-bnpp-primary shadow-md">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M11 17l-5-5m0 0l5-5m-5 5h12" />
+                            </svg>
+                            Back to Dashboard
+                        </button>
+                    </div>
+
+                    <!-- 2x2 Grid for ServiceNow Details -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        
+                        <!-- Details Card 1: Unassigned Incidents -->
+                        <div class="bg-white p-4 rounded-xl shadow-lg border-t-4 border-red-500">
+                            <h4 class="text-lg font-semibold text-bnpp-dark mb-3">Unassigned Incidents (P1/P2)</h4>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200 text-sm detail-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Incident</th>
+                                            <th>Application</th>
+                                            <th>Short Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        <!-- Sample Data -->
+                                        <tr><td class="text-red-600 font-medium">INC0098765</td><td>Jenkins</td><td>Agent connection failure on D-SIT.</td></tr>
+                                        <tr><td class="text-red-600 font-medium">INC0098766</td><td>Artifactory</td><td>High disk utilization warning.</td></tr>
+                                        <tr><td class="text-red-600 font-medium">INC0098767</td><td>Bitbucket</td><td>SSH key rotation requested.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- Details Card 2: Unanswered RITMs -->
+                        <div class="bg-white p-4 rounded-xl shadow-lg border-t-4 border-yellow-500">
+                            <h4 class="text-lg font-semibold text-bnpp-dark mb-3">Unanswered RITMs</h4>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200 text-sm detail-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Assigned To</th>
+                                            <th>Count of Unanswered RITMs</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        <!-- Sample Data -->
+                                        <tr><td>John Doe</td><td class="font-bold text-yellow-600">3</td></tr>
+                                        <tr><td>Jane Smith</td><td class="font-bold text-yellow-600">4</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Details Card 3: Planned Changes -->
+                        <div class="bg-white p-4 rounded-xl shadow-lg border-t-4 border-blue-500 md:col-span-2">
+                            <h4 class="text-lg font-semibold text-bnpp-dark mb-3">Planned Changes</h4>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200 text-sm detail-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Change</th>
+                                            <th>Application</th>
+                                            <th>Assigned To</th>
+                                            <th>Description</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        <!-- Sample Data -->
+                                        <tr><td>CHG005544</td><td>Artifactory</td><td>Ops Team</td><td>Upgrade to v7.38 scheduled for next window.</td></tr>
+                                        <tr><td>CHG005545</td><td>SonarQube</td><td>John Doe</td><td>Patch for critical vulnerability requested.</td></tr>
+                                        <tr><td>CHG005546</td><td>ArgoCD</td><td>Platform Eng</td><td>New cluster provisioning completed 90%.</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Details Card 4: On Hold RITMs -->
+                        <div class="bg-white p-4 rounded-xl shadow-lg border-t-4 border-orange-500">
+                            <h4 class="text-lg font-semibold text-bnpp-dark mb-3">On Hold RITMs (> 5 Days)</h4>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full divide-y divide-gray-200 text-sm detail-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Assigned To</th>
+                                            <th>Count</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="bg-white divide-y divide-gray-200">
+                                        <!-- Sample Data -->
+                                        <tr><td>Jane Smith</td><td class="font-bold text-orange-600">1</td></tr>
+                                        <tr><td>External Vendor</td><td class="font-bold text-orange-600">0</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </section>
+            
+            <!-- 3. Right Section: Handover (2/6 width) - STATIC -->
+            <section class="lg:col-span-2">
+                <div class="bg-white p-6 rounded-xl shadow-lg h-full flex flex-col">
+                    <h2 class="text-lg font-semibold text-bnpp-dark mb-4 border-b pb-2">Support Team Handover</h2>
+                    
+                    <div class="space-y-4 flex-grow custom-scrollbar overflow-y-auto pr-2">
+                        
+                        <!-- RITMs -->
+                        <div>
+                            <label for="handover-ritms" class="block text-sm font-medium text-gray-700 mb-1">Priority RITMs/SRs (P1/P2/Long Running)</label>
+                            <textarea id="handover-ritms" rows="3" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-bnpp-primary focus:border-bnpp-primary resize-none text-sm" placeholder="e.g., RITM0012345 - Pending QA signoff..."></textarea>
+                        </div>
+                        
+                        <!-- Incidents -->
+                        <div>
+                            <label for="handover-incidents" class="block text-sm font-medium text-gray-700 mb-1">Active/Monitoring Incidents</label>
+                            <textarea id="handover-incidents" rows="3" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-bnpp-primary focus:border-bnpp-primary resize-none text-sm" placeholder="e.g., INC0098765 - Jenkins Slave outage. Monitoring fix..."></textarea>
+                        </div>
+
+                        <!-- Changes -->
+                        <div>
+                            <label for="handover-changes" class="block text-sm font-medium text-gray-700 mb-1">Upcoming/Ongoing Changes</label>
+                            <textarea id="handover-changes" rows="3" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-bnpp-primary focus:border-bnpp-primary resize-none text-sm" placeholder="e.g., CHG005544 - Artifactory upgrade scheduled for 2 AM..."></textarea>
+                        </div>
+
+                        <!-- General Comments -->
+                        <div>
+                            <label for="handover-comments" class="block text-sm font-medium text-gray-700 mb-1">Comments / Key Tasks for Next Shift</label>
+                            <textarea id="handover-comments" rows="5" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-bnpp-primary focus:border-bnpp-primary resize-none text-sm" placeholder="e.g., Ensure Bitbucket pull request queue is cleared. Check memory usage on SonarQube DB..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Action Button -->
+                    <button class="mt-4 w-full bg-bnpp-primary text-white py-2 rounded-lg font-semibold hover:bg-bnpp-dark transition duration-150 shadow-md" onclick="submitHandover()">
+                        Submit Handover
+                    </button>
+                </div>
+            </section>
+
+        </div>
+    </main>
+    
+    <!-- Custom placeholder functions and View Logic -->
+    <script>
+        /**
+         * Custom Modal Function (replaces alert() and confirm())
+         */
+        function alertPlaceholder(featureName) {
+            const body = document.body;
+            
+            // Remove any existing overlay
+            let existing = document.getElementById('placeholder-modal');
+            if (existing) existing.remove();
+
+            // Create Modal Overlay
+            const modal = document.createElement('div');
+            modal.id = 'placeholder-modal';
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+            
+            // Create Modal Content
+            const content = document.createElement('div');
+            content.className = 'bg-white p-6 rounded-xl shadow-2xl max-w-sm w-full transform transition-all duration-300 scale-100';
+            
+            // Content HTML
+            content.innerHTML = `
+                <div class="text-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 mx-auto text-bnpp-primary mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <h4 class="text-xl font-bold text-bnpp-dark mb-2">${featureName}</h4>
+                    <p class="text-gray-600 mb-4">This feature is currently under construction and will be available soon!</p>
+                    <button id="close-modal" class="bg-bnpp-primary text-white py-2 px-6 rounded-lg font-medium hover:bg-bnpp-dark transition duration-150">
+                        Got It
+                    </button>
+                </div>
+            `;
+            
+            modal.appendChild(content);
+            body.appendChild(modal);
+
+            // Close logic
+            document.getElementById('close-modal').onclick = () => modal.remove();
+            modal.onclick = (e) => {
+                if (e.target.id === 'placeholder-modal') {
+                    modal.remove();
+                }
+            };
+        }
+
+        /**
+         * Function to switch between different views in the middle section.
+         */
+        function showView(viewId) {
+            // List all dynamic view IDs here
+            const allViewIds = ['dashboard-view', 'servicenow-details-view'];
+            
+            allViewIds.forEach(id => {
+                const view = document.getElementById(id);
+                if (view) {
+                    if (id === viewId) {
+                        view.classList.remove('hidden');
+                    } else {
+                        view.classList.add('hidden');
+                    }
+                }
+            });
+        }
+
+        /**
+         * Handles the handover submission (placeholder for now)
+         */
+        function submitHandover() {
+             // Placeholder: In a real app, this would use Firestore/API to save the data.
+             alertPlaceholder('Handover Submitted');
+        }
+
+        // Initialize: Ensure the dashboard view is shown first when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            showView('dashboard-view');
+        });
+    </script>
+</body>
+</html>
